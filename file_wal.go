@@ -11,9 +11,8 @@ var (
 	// Magic sequence to check for valid data.
 	walMagic = uint32(0x11141993)
 
-	// Common errors
-	ErrorInvalidWALMagic = errors.New("catena: invalid WAL magic number")
-	ErrorInvalidWALFile  = errors.New("catena: invalid WAL file")
+	errorInvalidWALMagic = errors.New("catena: invalid WAL magic number")
+	errorInvalidWALFile  = errors.New("catena: invalid WAL file")
 )
 
 // fileWAL is a write-ahead backed by a file on disk.
@@ -61,7 +60,7 @@ func (w *fileWAL) append(entry walEntry) (int, error) {
 
 	// Make sure we have an open WAL.
 	if w.f == nil {
-		return 0, ErrorInvalidWALFile
+		return 0, errorInvalidWALFile
 	}
 
 	// Buffer writes until the end.
@@ -137,7 +136,7 @@ func (w *fileWAL) readEntry() (walEntry, error) {
 
 	// Make sure we have an open WAL.
 	if w.f == nil {
-		return entry, ErrorInvalidWALFile
+		return entry, errorInvalidWALFile
 	}
 
 	// Read magic value.
@@ -148,7 +147,7 @@ func (w *fileWAL) readEntry() (walEntry, error) {
 	}
 
 	if magic != walMagic {
-		return entry, ErrorInvalidWALMagic
+		return entry, errorInvalidWALMagic
 	}
 
 	// Read the operation type.

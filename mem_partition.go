@@ -63,7 +63,7 @@ func (p *memoryPartition) addPoint(source, metric string,
 	defer p.lock.Unlock()
 
 	if p.ro {
-		return ErrorReadyOnlyPartition
+		return errorReadyOnlyPartition
 	}
 
 	// Write to the WAL.
@@ -174,7 +174,7 @@ func (p *memoryPartition) addPoint(source, metric string,
 	for i := lastIndex; i >= 0; i-- {
 
 		if met.points[i].Timestamp == timestamp {
-			return ErrorObservationExists
+			return errorObservationExists
 		}
 
 		if met.points[i].Timestamp < timestamp {
@@ -241,14 +241,14 @@ func (p *memoryPartition) fetchPoints(source, metric string,
 				}
 
 				if met.name > metric {
-					return nil, ErrorMetricNotFound
+					return nil, errorMetricNotFound
 				}
 			}
 			break
 		}
 
 		if src.name > source {
-			return nil, ErrorSourceNotFound
+			return nil, errorSourceNotFound
 		}
 	}
 

@@ -5,10 +5,10 @@ import (
 )
 
 var (
-	ErrorReadyOnlyPartition = errors.New("catena: partition is read only")
-	ErrorObservationExists  = errors.New("catena: existing observation in partition")
-	ErrorSourceNotFound     = errors.New("catena: source not found")
-	ErrorMetricNotFound     = errors.New("catena: metric not found")
+	errorReadyOnlyPartition = errors.New("catena: partition is read only")
+	errorObservationExists  = errors.New("catena: existing observation in partition")
+	errorSourceNotFound     = errors.New("catena: source not found")
+	errorMetricNotFound     = errors.New("catena: metric not found")
 )
 
 // A partition is a disjoint set of time series
