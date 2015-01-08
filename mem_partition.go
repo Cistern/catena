@@ -32,7 +32,7 @@ type memoryMetric struct {
 	points []point
 }
 
-func NewMemoryPartition() *memoryPartition {
+func newMemoryPartition() *memoryPartition {
 	return &memoryPartition{}
 }
 

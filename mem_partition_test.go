@@ -5,7 +5,7 @@ import (
 )
 
 func TestPartition(t *testing.T) {
-	mp := NewMemoryPartition()
+	mp := newMemoryPartition()
 	mp.addPoint("A", "1", 1, 1)
 	mp.addPoint("C", "1", 1, 1)
 	mp.addPoint("A", "2", 1, 1)
