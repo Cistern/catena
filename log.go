@@ -5,4 +5,4 @@ import (
 	"os"
 )
 
-var logger = log.New(os.Stderr, "catena: ", log.Lshortfile)
+var logger = log.New(os.Stderr, "catena: ", log.Lshortfile|log.Lmicroseconds)

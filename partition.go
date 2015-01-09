@@ -20,8 +20,10 @@ type partition interface {
 
 	readOnly() bool
 
-	addPoint(source, metric string,
-		timestamp int64, value float64) error
+	addPoints(source, metric string,
+		points []point)
+
+	put(Rows) error
 
 	fetchPoints(source, metric string,
 		start, end int64) ([]point, error)

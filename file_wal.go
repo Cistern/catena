@@ -115,6 +115,15 @@ func (w *fileWAL) append(entry walEntry) (int, error) {
 		}
 	}
 
+	// Record the current offset so we can truncate
+	// later in case something goes wrong.
+	currentOffset, err := w.f.Seek(0, 1)
+	if err != nil {
+		return 0, err
+	}
+
+	w.lastReadOffset = currentOffset
+
 	// Flush to the file.
 	n, err := w.f.Write(buf.Bytes())
 	if err != nil {
@@ -164,7 +173,7 @@ func (w *fileWAL) readEntry() (walEntry, error) {
 	}
 
 	for i := uint16(0); i < numRows; i++ {
-		row := walRow{}
+		row := Row{}
 
 		sourceNameLength, metricNameLength := uint8(0), uint8(0)
 

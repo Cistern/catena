@@ -7,7 +7,7 @@ import (
 
 func TestWAL(t *testing.T) {
 	// Open a new test WAL file. We truncate any existing file.
-	w, err := newFileWAL("/tmp/test.wal")
+	w, err := newFileWAL("/tmp/TestWAL.wal")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,8 +18,8 @@ func TestWAL(t *testing.T) {
 
 	entry := walEntry{
 		operation: operationInsert,
-		rows: []walRow{
-			walRow{
+		rows: Rows{
+			Row{
 				Source:    "hostA",
 				Metric:    "metric.1",
 				Timestamp: 123,
@@ -42,7 +42,7 @@ func TestWAL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w, err = openFileWAL("/tmp/test.wal")
+	w, err = openFileWAL("/tmp/TestWAL.wal")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,8 +62,108 @@ func TestWAL(t *testing.T) {
 	}
 }
 
+func TestWALMultipleEntries(t *testing.T) {
+	// Open a new test WAL file. We truncate any existing file.
+	w, err := newFileWAL("/tmp/TestWALMultipleEntries.wal")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if w.lastReadOffset != 0 {
+		t.Error("expected lastReadOffset to be 0, got %d", w.lastReadOffset)
+	}
+
+	entries := []walEntry{
+		walEntry{
+			operation: operationInsert,
+			rows: Rows{
+				Row{
+					Source:    "hostA",
+					Metric:    "metric.1",
+					Timestamp: 123,
+					Value:     0.234,
+				},
+			},
+		},
+		walEntry{
+			operation: operationInsert,
+			rows: Rows{
+				Row{
+					Source:    "hostA",
+					Metric:    "metric.1",
+					Timestamp: 456,
+					Value:     0.234,
+				},
+			},
+		},
+		walEntry{
+			operation: operationInsert,
+			rows: Rows{
+				Row{
+					Source:    "hostA",
+					Metric:    "metric.1",
+					Timestamp: -456,
+					Value:     -0.234,
+				},
+			},
+		},
+		walEntry{
+			operation: operationInsert,
+			rows: Rows{
+				Row{
+					Source:    "hostA",
+					Metric:    "metric.1",
+					Timestamp: 1000,
+					Value:     -0.234,
+				},
+			},
+		},
+	}
+
+	for _, entry := range entries {
+		n, err := w.append(entry)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if n == 0 {
+			t.Errorf("expected to get non-zero bytes written, got %d", n)
+		}
+	}
+
+	err = w.close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w, err = openFileWAL("/tmp/TestWALMultipleEntries.wal")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	readEntries := []walEntry{}
+
+	for {
+		readEntry, err := w.readEntry()
+		if err != nil {
+			break
+		}
+
+		readEntries = append(readEntries, readEntry)
+	}
+
+	if !reflect.DeepEqual(readEntries, entries) {
+		t.Errorf("expected entires %#v, got %#v", entries, readEntries)
+	}
+
+	err = w.close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWALWithBadEntry(t *testing.T) {
-	w, err := newFileWAL("/tmp/test.wal")
+	w, err := newFileWAL("/tmp/TestWALWithBadEntry.wal")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,20 +174,20 @@ func TestWALWithBadEntry(t *testing.T) {
 
 	entry := walEntry{
 		operation: operationInsert,
-		rows: []walRow{
-			walRow{
+		rows: Rows{
+			Row{
 				Source:    "hostA",
 				Metric:    "metric.1",
 				Timestamp: 123,
 				Value:     0.234,
 			},
-			walRow{
+			Row{
 				Source:    "hostB",
 				Metric:    "metric.1",
 				Timestamp: 123,
 				Value:     0.234,
 			},
-			walRow{
+			Row{
 				Source:    "hostA",
 				Metric:    "metric.2",
 				Timestamp: 123,
@@ -126,7 +226,7 @@ func TestWALWithBadEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w, err = openFileWAL("/tmp/test.wal")
+	w, err = openFileWAL("/tmp/TestWALWithBadEntry.wal")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +263,7 @@ func TestWALWithBadEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w, err = openFileWAL("/tmp/test.wal")
+	w, err = openFileWAL("/tmp/TestWALWithBadEntry.wal")
 	if err != nil {
 		t.Fatal(err)
 	}

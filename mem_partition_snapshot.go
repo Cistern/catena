@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 )
 
@@ -140,8 +139,6 @@ func (p *memoryPartition) serialize(w io.WriteSeeker) error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Println(filePart)
 
 	return nil
 }

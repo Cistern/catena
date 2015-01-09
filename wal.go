@@ -14,16 +14,8 @@ type wal interface {
 	close() error
 }
 
-// walRow represents a single point or observation
-// of a time series.
-type walRow struct {
-	Source, Metric string
-	Timestamp      int64
-	Value          float64
-}
-
 // walEntry is an entry in the write-ahead log.
 type walEntry struct {
 	operation walOperation
-	rows      []walRow
+	rows      Rows
 }

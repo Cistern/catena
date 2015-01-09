@@ -62,9 +62,12 @@ func (p *filePartition) readOnly() bool {
 
 // addPoint adds a point to the partition and returns
 // an error.
-func (p *filePartition) addPoint(source, metric string,
-	timestamp int64, value float64) error {
+func (p *filePartition) addPoints(source, metric string,
+	points []point) {
 	// We can't write to filePartitions.
+}
+
+func (p *filePartition) put(rows Rows) error {
 	return errorReadyOnlyPartition
 }
 
