@@ -32,6 +32,7 @@ type memoryMetric struct {
 	points []point
 }
 
+// newMemoryPartition creates a new memoryPartition.
 func newMemoryPartition() *memoryPartition {
 	return &memoryPartition{}
 }
@@ -173,14 +174,19 @@ func (p *memoryPartition) addPoint(source, metric string,
 	lastIndex := len(met.points) - 1
 	for i := lastIndex; i >= 0; i-- {
 
-		if met.points[i].Timestamp == timestamp {
-			return errorObservationExists
-		}
+		ts := met.points[i].Timestamp
 
-		if met.points[i].Timestamp < timestamp {
+		switch {
+		case ts == timestamp:
+			return errorObservationExists
+
+		case ts > timestamp:
 			insertionPoint = i
+
+		default:
 			break
 		}
+
 	}
 
 	if insertionPoint == -1 {
