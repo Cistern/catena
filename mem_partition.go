@@ -18,9 +18,6 @@ type memoryPartition struct {
 	// Write-ahead log
 	log wal
 
-	// Buffered channel of writes.
-	pendingWrites chan Rows
-
 	lock sync.RWMutex
 }
 
@@ -43,16 +40,35 @@ type memoryMetric struct {
 // newMemoryPartition creates a new memoryPartition.
 func newMemoryPartition(log wal) (*memoryPartition, error) {
 	p := &memoryPartition{
-		log:           log,
-		pendingWrites: make(chan Rows),
+		log: log,
 	}
-
-	go p.handleWrites()
 
 	// Load data from the WAL.
 	for entry, err := log.readEntry(); err == nil; entry, err = log.readEntry() {
 		if entry.operation == operationInsert {
-			p.pendingWrites <- entry.rows
+			sources := map[string]map[string][]point{}
+
+			for _, row := range entry.rows {
+				metrics := sources[row.Source]
+
+				if metrics == nil {
+					metrics = map[string][]point{}
+				}
+
+				metrics[row.Metric] = append(metrics[row.Metric],
+					point{
+						Timestamp: row.Timestamp,
+						Value:     row.Value,
+					})
+
+				sources[row.Source] = metrics
+			}
+
+			for source, metrics := range sources {
+				for metric, points := range metrics {
+					p.addPoints(source, metric, points)
+				}
+			}
 		}
 	}
 
@@ -68,12 +84,18 @@ func newMemoryPartition(log wal) (*memoryPartition, error) {
 // minTimestamp returns the minimum timestamp
 // value held by this partition.
 func (p *memoryPartition) minTimestamp() int64 {
+	p.lock.Lock()
+	p.lock.Unlock()
+
 	return p.minTS
 }
 
 // maxTimestamp returns the maximum timestamp
 // value held by this partition.
 func (p *memoryPartition) maxTimestamp() int64 {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	return p.maxTS
 }
 
@@ -106,9 +128,31 @@ func (p *memoryPartition) put(rows Rows) error {
 		return err
 	}
 
-	// Successfully wrote to the WAL.
-	// Buffer the writes.
-	p.pendingWrites <- rows
+	p.walLock.Unlock()
+
+	sources := map[string]map[string][]point{}
+
+	for _, row := range rows {
+		metrics := sources[row.Source]
+
+		if metrics == nil {
+			metrics = map[string][]point{}
+		}
+
+		metrics[row.Metric] = append(metrics[row.Metric],
+			point{
+				Timestamp: row.Timestamp,
+				Value:     row.Value,
+			})
+
+		sources[row.Source] = metrics
+	}
+
+	for source, metrics := range sources {
+		for metric, points := range metrics {
+			p.addPoints(source, metric, points)
+		}
+	}
 
 	// Writes don't return errors.
 	return nil
@@ -240,11 +284,8 @@ NEXT_POINT:
 
 			switch {
 			case ts == timestamp:
-
-				// We *must* unlock before returning!
-				met.lock.Unlock()
 				met.points[i].Value = value
-				goto NEXT_POINT
+				continue NEXT_POINT
 
 			case ts > timestamp:
 				insertionPoint = i
@@ -331,34 +372,6 @@ func (p *memoryPartition) fetchPoints(source, metric string,
 	}
 
 	return points, nil
-}
-
-func (p *memoryPartition) handleWrites() {
-	for rows := range p.pendingWrites {
-		sources := map[string]map[string][]point{}
-
-		for _, row := range rows {
-			metrics := sources[row.Source]
-
-			if metrics == nil {
-				metrics = map[string][]point{}
-			}
-
-			metrics[row.Metric] = append(metrics[row.Metric],
-				point{
-					Timestamp: row.Timestamp,
-					Value:     row.Value,
-				})
-
-			sources[row.Source] = metrics
-		}
-
-		for source, metrics := range sources {
-			for metric, points := range metrics {
-				p.addPoints(source, metric, points)
-			}
-		}
-	}
 }
 
 // memoryPartition is a partition

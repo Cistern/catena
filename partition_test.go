@@ -3,7 +3,6 @@ package catena
 import (
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestMemoryPartition(t *testing.T) {
@@ -53,10 +52,6 @@ func TestMemoryPartition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// Wait for a very short amount of time
-	// for the in-memory structure to update.
-	time.Sleep(20 * time.Nanosecond)
 
 	expectedPoints := []point{
 		point{
@@ -160,10 +155,6 @@ func TestMemoryPartitionRecover(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// Wait for a short amount of time
-	// for the in-memory structure to update.
-	time.Sleep(1 * time.Millisecond)
 
 	expectedPoints := []point{
 		point{
