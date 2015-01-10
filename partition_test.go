@@ -20,32 +20,32 @@ func TestMemoryPartition(t *testing.T) {
 	err = p.put(Rows{
 		Row{
 			Source:    "hostA",
-			Metric:    "metric.1",
-			Timestamp: 123,
+			Metric:    "metric.5",
+			Timestamp: 1,
 			Value:     0.234,
 		},
 		Row{
-			Source:    "hostB",
-			Metric:    "metric.1",
-			Timestamp: 123,
+			Source:    "hostA",
+			Metric:    "metric.4",
+			Timestamp: 2,
+			Value:     0.234,
+		},
+		Row{
+			Source:    "hostA",
+			Metric:    "metric.3",
+			Timestamp: 3,
 			Value:     0.234,
 		},
 		Row{
 			Source:    "hostA",
 			Metric:    "metric.2",
-			Timestamp: 123,
-			Value:     0.234,
-		},
-		Row{
-			Source:    "hostC",
-			Metric:    "metric.1",
-			Timestamp: 123,
+			Timestamp: 4,
 			Value:     -123,
 		},
 		Row{
 			Source:    "hostA",
 			Metric:    "metric.1",
-			Timestamp: -1,
+			Timestamp: 5,
 			Value:     0.234,
 		},
 	})
@@ -53,14 +53,14 @@ func TestMemoryPartition(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedPoints := []point{
-		point{
-			Timestamp: 123,
+	expectedPoints := []Point{
+		Point{
+			Timestamp: 3,
 			Value:     0.234,
 		},
 	}
 
-	points, err := p.fetchPoints("hostA", "metric.1", 0, 1000)
+	points, err := p.fetchPoints("hostA", "metric.3", 0, 1000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,16 +156,16 @@ func TestMemoryPartitionRecover(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedPoints := []point{
-		point{
+	expectedPoints := []Point{
+		Point{
 			Timestamp: 123,
 			Value:     0.234,
 		},
-		point{
+		Point{
 			Timestamp: 456,
 			Value:     0.234,
 		},
-		point{
+		Point{
 			Timestamp: 1000,
 			Value:     -0.234,
 		},

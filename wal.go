@@ -12,6 +12,7 @@ type wal interface {
 	readEntry() (walEntry, error)
 	truncate() error
 	close() error
+	filename() string
 }
 
 // walEntry is an entry in the write-ahead log.

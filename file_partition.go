@@ -60,10 +60,14 @@ func (p *filePartition) readOnly() bool {
 	return true
 }
 
+func (p *filePartition) filename() string {
+	return p.f.Name()
+}
+
 // addPoint adds a point to the partition and returns
 // an error.
 func (p *filePartition) addPoints(source, metric string,
-	points []point) {
+	points []Point) {
 	// We can't write to filePartitions.
 }
 
@@ -256,9 +260,9 @@ func (p *filePartition) loadMetadata() error {
 }
 
 func (p *filePartition) fetchPoints(source, metric string,
-	start, end int64) ([]point, error) {
+	start, end int64) ([]Point, error) {
 
-	points := []point{}
+	points := []Point{}
 
 	for _, src := range p.sources {
 		if src.name == source {
@@ -278,7 +282,7 @@ func (p *filePartition) fetchPoints(source, metric string,
 					}
 
 					for i := 0; i < met.numPoints; i++ {
-						pnt := point{}
+						pnt := Point{}
 						err = binary.Read(gzipReader, binary.LittleEndian, &pnt)
 						if err != nil {
 							return nil, err

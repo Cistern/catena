@@ -21,10 +21,12 @@ type partition interface {
 	readOnly() bool
 
 	addPoints(source, metric string,
-		points []point)
+		points []Point)
 
 	put(Rows) error
 
 	fetchPoints(source, metric string,
-		start, end int64) ([]point, error)
+		start, end int64) ([]Point, error)
+
+	filename() string
 }

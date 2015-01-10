@@ -106,7 +106,7 @@ func (w *fileWAL) append(entry walEntry) (int, error) {
 		}
 
 		// Write timestamp and value
-		err = binary.Write(buf, binary.LittleEndian, point{
+		err = binary.Write(buf, binary.LittleEndian, Point{
 			Timestamp: row.Timestamp,
 			Value:     row.Value,
 		})
@@ -129,9 +129,6 @@ func (w *fileWAL) append(entry walEntry) (int, error) {
 	if err != nil {
 		return n, err
 	}
-
-	// Sync for durability.
-	err = w.f.Sync()
 
 	return n, err
 }
@@ -197,7 +194,7 @@ func (w *fileWAL) readEntry() (walEntry, error) {
 		row.Source = string(sourceAndMetricNames[:int(sourceNameLength)])
 		row.Metric = string(sourceAndMetricNames[int(sourceNameLength):])
 
-		tmpPoint := point{}
+		tmpPoint := Point{}
 		err = binary.Read(w.f, binary.LittleEndian, &tmpPoint)
 		if err != nil {
 			return entry, err
@@ -228,6 +225,10 @@ func (w *fileWAL) readEntry() (walEntry, error) {
 // they are appended.
 func (w *fileWAL) truncate() error {
 	return w.f.Truncate(w.lastReadOffset)
+}
+
+func (w *fileWAL) filename() string {
+	return w.f.Name()
 }
 
 // close closes the file used by w.

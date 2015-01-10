@@ -33,6 +33,9 @@ func (p *memoryPartition) serialize(w io.WriteSeeker) error {
 		}
 
 		for _, met := range src.metrics {
+			logger.Println(src.name,
+				met.name)
+
 			gzipWriter.Reset(w)
 
 			fileMet := fileMetric{

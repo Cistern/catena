@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // DB is a handle to a catena database.
@@ -17,7 +18,8 @@ type DB struct {
 	// Data directory
 	baseDir string
 
-	partitions []partition
+	partitionsLock sync.RWMutex
+	partitions     []partition
 
 	lastPartitionID  int
 	partitionModulus int
@@ -124,8 +126,6 @@ func (db *DB) loadPartitions(names []string) error {
 	}
 
 	sort.Ints(partitions)
-
-	logger.Println(partitions)
 
 	for _, part := range partitions {
 		if isWAL[part] {
