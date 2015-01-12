@@ -1,5 +1,8 @@
 package catena
 
+// A Series is an ordered set of points
+// for a source and metric over a range
+// of time.
 type Series struct {
 	// First timestamp
 	Start int64 `json:"start"`
@@ -13,6 +16,9 @@ type Series struct {
 	Points []Point `json:"points"`
 }
 
+// A QueryDesc is a description of a
+// query. It specifies a source, metric,
+// start, and end timestamps.
 type QueryDesc struct {
 	Source string
 	Metric string
@@ -20,10 +26,14 @@ type QueryDesc struct {
 	End    int64
 }
 
+// A QueryResponse is returned after querying
+// the DB with a QueryDesc.
 type QueryResponse struct {
 	Series []Series `json:"series"`
 }
 
+// Query fetches series matching the QueryDescs
+// and returns a QueryResponse.
 func (db *DB) Query(descs []QueryDesc) QueryResponse {
 	db.partitionsLock.Lock()
 	defer db.partitionsLock.Unlock()

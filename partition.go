@@ -19,6 +19,7 @@ type partition interface {
 	maxTimestamp() int64
 
 	readOnly() bool
+	setReadOnly()
 
 	addPoints(source, metric string,
 		points []Point)
@@ -29,4 +30,7 @@ type partition interface {
 		start, end int64) ([]Point, error)
 
 	filename() string
+
+	close() error
+	destroy() error
 }

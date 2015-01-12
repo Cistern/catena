@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// InsertRows inserts rows into the database.
 func (db *DB) InsertRows(rows Rows) error {
 	db.partitionsLock.Lock()
 	defer db.partitionsLock.Unlock()
@@ -98,11 +99,18 @@ func (db *DB) InsertRows(rows Rows) error {
 	return nil
 }
 
+// compactPartitions converts older WAL partitions
+// into compressed file partitions.
 func (db *DB) compactPartitions() {
 	db.partitionsLock.Lock()
 	defer db.partitionsLock.Unlock()
 
-	for i := 0; i < len(db.partitions)-1; i++ {
+	for len(db.partitions) > db.maxPartitions {
+		db.partitions[0].destroy()
+		db.partitions = db.partitions[1:]
+	}
+
+	for i := 0; i < len(db.partitions)-2; i++ {
 		part := db.partitions[i]
 
 		if !part.readOnly() {
@@ -110,15 +118,13 @@ func (db *DB) compactPartitions() {
 			logger.Println(part.filename(), "needs to be compacted")
 
 			logger.Println("starting compaction of", part.filename())
+
 			// Compact
 			mp := part.(*memoryPartition)
-			mp.lock.Lock()
-			mp.walLock.Lock()
-			defer mp.walLock.Unlock()
-			mp.ro = true
-			mp.lock.Unlock()
 
-			walName := mp.log.(*fileWAL).f.Name()
+			mp.setReadOnly()
+
+			walName := mp.log.filename()
 			partitionName := strings.TrimSuffix(walName, ".wal") + ".part"
 
 			f, err := os.Create(partitionName)
@@ -128,7 +134,10 @@ func (db *DB) compactPartitions() {
 
 			err = mp.serialize(f)
 			if err == nil {
-				os.Remove(walName)
+				err = mp.destroy()
+				if err != nil {
+					logger.Println(err)
+				}
 			}
 			f.Sync()
 			f.Close()

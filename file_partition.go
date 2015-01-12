@@ -60,6 +60,14 @@ func (p *filePartition) readOnly() bool {
 	return true
 }
 
+// setReadOnly is a no-op for a filePartition
+// because they are always read-only.
+func (p *filePartition) setReadOnly() {
+	// no-op
+}
+
+// filename returns the name of the file used
+// by this partition.
 func (p *filePartition) filename() string {
 	return p.f.Name()
 }
@@ -71,6 +79,8 @@ func (p *filePartition) addPoints(source, metric string,
 	// We can't write to filePartitions.
 }
 
+// put always returns errorReadyOnlyPartition because
+// filePartitions are always read-only.
 func (p *filePartition) put(rows Rows) error {
 	return errorReadyOnlyPartition
 }
@@ -259,6 +269,8 @@ func (p *filePartition) loadMetadata() error {
 	return nil
 }
 
+// fetchPoints returns an ordered slice of points for the
+// (source, metric) series within the [start, end] time range.
 func (p *filePartition) fetchPoints(source, metric string,
 	start, end int64) ([]Point, error) {
 
@@ -308,6 +320,28 @@ func (p *filePartition) fetchPoints(source, metric string,
 	}
 
 	return points, nil
+}
+
+func (p *filePartition) close() error {
+	err := p.f.Close()
+	if err != nil {
+		return err
+	}
+
+	p.f = nil
+
+	return nil
+}
+
+func (p *filePartition) destroy() error {
+	filename := p.filename()
+
+	err := p.close()
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(filename)
 }
 
 // filePartition is a partition

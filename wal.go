@@ -12,6 +12,7 @@ type wal interface {
 	readEntry() (walEntry, error)
 	truncate() error
 	close() error
+	destroy() error
 	filename() string
 }
 

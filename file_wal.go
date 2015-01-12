@@ -21,6 +21,8 @@ type fileWAL struct {
 	// File used by the WAL.
 	f *os.File
 
+	fname string
+
 	// lastReadOffset stores end of the last good
 	// WAL entry. This way we can truncate the WAL
 	// and keep appending valid data at the end.
@@ -37,7 +39,8 @@ func newFileWAL(filename string) (*fileWAL, error) {
 	}
 
 	return &fileWAL{
-		f: f,
+		f:     f,
+		fname: filename,
 	}, nil
 }
 
@@ -50,7 +53,8 @@ func openFileWAL(filename string) (*fileWAL, error) {
 	}
 
 	return &fileWAL{
-		f: f,
+		f:     f,
+		fname: filename,
 	}, nil
 }
 
@@ -228,19 +232,32 @@ func (w *fileWAL) truncate() error {
 }
 
 func (w *fileWAL) filename() string {
-	return w.f.Name()
+	return w.fname
 }
 
 // close closes the file used by w.
 func (w *fileWAL) close() error {
-	err := w.f.Close()
-	if err != nil {
-		return err
+	if w.f != nil {
+		err := w.f.Close()
+		if err != nil {
+			return err
+		}
 	}
 
 	w.f = nil
 	w.lastReadOffset = 0
 	return nil
+}
+
+func (w *fileWAL) destroy() error {
+	filename := w.filename()
+	err := w.close()
+	if err != nil {
+		logger.Println(err)
+		return err
+	}
+
+	return os.Remove(filename)
 }
 
 // fileWAL is a wal.

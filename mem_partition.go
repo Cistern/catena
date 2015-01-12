@@ -102,6 +102,15 @@ func (p *memoryPartition) readOnly() bool {
 	return p.ro
 }
 
+// setReadOnly sets the the readOnly flag.
+func (p *memoryPartition) setReadOnly() {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	p.ro = true
+}
+
+// filename returns the filename of the WAL used
+// by this partition.
 func (p *memoryPartition) filename() string {
 	return p.log.filename()
 }
@@ -157,6 +166,7 @@ func (p *memoryPartition) put(rows Rows) error {
 	return nil
 }
 
+// addPoints adds points to the partition.
 func (p *memoryPartition) addPoints(source, metric string, points []Point) {
 	if len(p.sources) == 0 {
 		// This is the first point.
@@ -356,6 +366,26 @@ func (p *memoryPartition) fetchPoints(source, metric string,
 	}
 
 	return points, nil
+}
+
+func (p *memoryPartition) close() error {
+	p.setReadOnly()
+
+	p.lock.Lock()
+	p.sources = nil
+	p.lock.Unlock()
+
+	return p.log.close()
+}
+
+func (p *memoryPartition) destroy() error {
+	err := p.close()
+	if err != nil {
+		logger.Println(err)
+		return err
+	}
+
+	return p.log.destroy()
 }
 
 // memoryPartition is a partition
