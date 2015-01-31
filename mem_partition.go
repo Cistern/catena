@@ -119,7 +119,6 @@ func (p *memoryPartition) filename() string {
 // put adds rows to a partition.
 func (p *memoryPartition) put(rows Rows) error {
 	p.lock.Lock()
-	defer p.lock.Unlock()
 
 	if p.ro {
 		return errorReadyOnlyPartition
@@ -139,6 +138,8 @@ func (p *memoryPartition) put(rows Rows) error {
 		return err
 	}
 
+	p.lock.Unlock()
+
 	sources := map[string]map[string][]Point{}
 
 	for _, row := range rows {
@@ -157,11 +158,17 @@ func (p *memoryPartition) put(rows Rows) error {
 		sources[row.Source] = metrics
 	}
 
+	wg := sync.WaitGroup{}
 	for source, metrics := range sources {
 		for metric, points := range metrics {
-			p.addPoints(source, metric, points)
+			wg.Add(1)
+			go func(s, m string, pnts []Point) {
+				p.addPoints(s, m, pnts)
+				wg.Done()
+			}(source, metric, points)
 		}
 	}
+	wg.Wait()
 
 	// Writes don't return errors.
 	return nil
