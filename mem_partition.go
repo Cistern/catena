@@ -12,7 +12,7 @@ type memoryPartition struct {
 	maxTS int64
 	ro    bool
 
-	sources []*memorySource
+	sources *sourcelist
 
 	walLock sync.Mutex
 	// Write-ahead log
@@ -24,19 +24,20 @@ type memoryPartition struct {
 // memorySource is a metric source registered in memory.
 type memorySource struct {
 	name    string
-	metrics []*memoryMetric
+	metrics *metriclist
 }
 
 // memoryMetric is a metric in memory.
 type memoryMetric struct {
 	name   string
-	points []Point
+	points *pointList
 }
 
 // newMemoryPartition creates a new memoryPartition.
 func newMemoryPartition(log wal) (*memoryPartition, error) {
 	p := &memoryPartition{
-		log: log,
+		log:     log,
+		sources: Newsourcelist(),
 	}
 
 	// Load data from the WAL.
@@ -168,7 +169,9 @@ func (p *memoryPartition) put(rows Rows) error {
 
 // addPoints adds points to the partition.
 func (p *memoryPartition) addPoints(source, metric string, points []Point) {
-	if len(p.sources) == 0 {
+	var err error
+
+	if p.sources.Size() == 0 {
 		// This is the first point.
 		if len(points) > 0 {
 			p.minTS = points[0].Timestamp
@@ -176,98 +179,71 @@ func (p *memoryPartition) addPoints(source, metric string, points []Point) {
 		}
 	}
 
-	// What follow are in-order insertions
-	// into the sources, metrics, and points
-	// slices.
-
-	sourceIndex := -1
-	metricIndex := -1
-
-	insertionPoint := -1
-
-	// TODO: use a binary search
-	for i, src := range p.sources {
-		if src.name == source {
-			sourceIndex = i
-			break
-		}
-
-		if src.name > source {
-			insertionPoint = i
-			break
-		}
-	}
-
 	var src *memorySource
 
-	if sourceIndex == -1 {
-		// memorySource was not found.
-		src = &memorySource{}
-		src.name = source
-
-		if insertionPoint == -1 {
-			// Insert at the end.
-			insertionPoint = len(p.sources)
+	sourceIter := p.sources.NewIterator()
+	for sourceIter.Next() {
+		v, err := sourceIter.Value()
+		if err == nil && v.name == source {
+			src = v
 		}
 
-		// Update the sources slice.
-		p.sources = append(p.sources[:insertionPoint],
-			append([]*memorySource{src},
-				p.sources[insertionPoint:]...,
-			)...,
-		)
-
-		sourceIndex = insertionPoint
+		if v.name > source {
+			break
+		}
 	}
 
-	src = p.sources[sourceIndex]
-
-	// Now we do essentially the same
-	// thing for the metric.
-	insertionPoint = -1
-
-	for i, met := range src.metrics {
-		if met.name == metric {
-			metricIndex = i
-			break
+	if src == nil {
+		src = &memorySource{
+			name:    source,
+			metrics: Newmetriclist(),
 		}
 
-		if met.name > metric {
-			insertionPoint = i
-			break
+		err = p.sources.Insert(src)
+		if err != nil {
+			logger.Println(err)
+
+			for sourceIter.Next() {
+				v, err := sourceIter.Value()
+				if err != nil && v.name == source {
+					src = v
+				}
+			}
 		}
 	}
 
 	var met *memoryMetric
 
-	if metricIndex == -1 {
-		// memoryMetric was not found.
-		met = &memoryMetric{}
-		met.name = metric
-
-		if insertionPoint == -1 {
-			// Insert at the end.
-			insertionPoint = len(src.metrics)
+	metricIter := src.metrics.NewIterator()
+	for metricIter.Next() {
+		v, err := metricIter.Value()
+		if err == nil && v.name == metric {
+			met = v
 		}
-
-		// Update the metrics slice.
-		src.metrics = append(src.metrics[:insertionPoint],
-			append([]*memoryMetric{met},
-				src.metrics[insertionPoint:]...,
-			)...,
-		)
-
-		metricIndex = insertionPoint
 	}
 
-	met = src.metrics[metricIndex]
+	if met == nil {
+		met = &memoryMetric{
+			name:   metric,
+			points: NewpointList(),
+		}
+
+		err = src.metrics.Insert(met)
+		if err != nil {
+			logger.Println(err)
+
+			for metricIter.Next() {
+				v, err := metricIter.Value()
+				if err != nil && v.name == metric {
+					met = v
+				}
+			}
+		}
+	}
 
 	// Insert the points in order.
-
-NEXT_POINT:
 	for _, newPoint := range points {
 		timestamp := newPoint.Timestamp
-		value := newPoint.Value
 
 		switch {
 		case timestamp < p.minTS:
@@ -276,39 +252,10 @@ NEXT_POINT:
 			p.maxTS = timestamp
 		}
 
-		insertionPoint = -1
-
-		// We start from the end because the expected
-		// case is appending to the end.
-		lastIndex := len(met.points) - 1
-		for i := lastIndex; i >= 0; i-- {
-
-			ts := met.points[i].Timestamp
-
-			switch {
-			case ts == timestamp:
-				met.points[i].Value = value
-				continue NEXT_POINT
-
-			case ts > timestamp:
-				insertionPoint = i
-
-			default:
-				break
-			}
-
+		err = met.points.Insert(newPoint)
+		if err != nil {
+			logger.Println(err)
 		}
-
-		if insertionPoint == -1 {
-			insertionPoint = lastIndex + 1
-		}
-
-		// Update the points slice.
-		met.points = append(met.points[:insertionPoint],
-			append([]Point{newPoint},
-				met.points[insertionPoint:]...,
-			)...,
-		)
 	}
 }
 
@@ -319,7 +266,7 @@ func (p *memoryPartition) fetchPoints(source, metric string,
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	if len(p.sources) == 0 {
+	if p.sources.Size() == 0 {
 		return nil, errorSourceNotFound
 	}
 
@@ -328,15 +275,40 @@ func (p *memoryPartition) fetchPoints(source, metric string,
 	timeRange := end - start
 
 	// Iterate through sources
+	sourceIter := p.sources.NewIterator()
+	for sourceIter.Next() {
+		src, err := sourceIter.Value()
+		if err != nil {
+			return nil, err
+		}
 
-	for _, src := range p.sources {
+		if src.name > source {
+			return nil, errorSourceNotFound
+		}
+
 		if src.name == source {
 
 			// Iterate through metrics
-			for _, met := range src.metrics {
+			metricIter := src.metrics.NewIterator()
+			for metricIter.Next() {
+				met, err := metricIter.Value()
+				if err != nil {
+					return nil, err
+				}
+
+				if met.name > metric {
+					return nil, errorMetricNotFound
+				}
+
 				if met.name == metric {
 					// Iterate through points
-					for _, point := range met.points {
+					pointIter := met.points.NewIterator()
+					for pointIter.Next() {
+						point, err := pointIter.Value()
+						if err != nil {
+							return nil, err
+						}
+
 						if point.Timestamp-start < 0 {
 							continue
 						}
@@ -353,15 +325,9 @@ func (p *memoryPartition) fetchPoints(source, metric string,
 					break
 				}
 
-				if met.name > metric {
-					return nil, errorMetricNotFound
-				}
 			}
-			break
-		}
 
-		if src.name > source {
-			return nil, errorSourceNotFound
+			break
 		}
 	}
 
