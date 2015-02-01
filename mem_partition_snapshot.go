@@ -27,20 +27,30 @@ func (p *memoryPartition) serialize(w io.WriteSeeker) error {
 
 	gzipWriter := gzip.NewWriter(w)
 
-	for _, src := range p.sources {
+	sourceIter := p.sources.NewIterator()
+
+	for sourceIter.Next() {
+		src, err := sourceIter.Value()
+		if err != nil {
+			return err
+		}
+
 		fileSrc := fileSource{
 			name: src.name,
 		}
 
-		for _, met := range src.metrics {
-			logger.Println(src.name,
-				met.name)
+		metricIter := src.metrics.NewIterator()
+		for metricIter.Next() {
+			met, err := metricIter.Value()
+			if err != nil {
+				return err
+			}
 
 			gzipWriter.Reset(w)
 
 			fileMet := fileMetric{
 				name:      met.name,
-				numPoints: len(met.points),
+				numPoints: met.points.Size(),
 			}
 
 			currentOffset, err := w.Seek(0, 1)
@@ -50,8 +60,17 @@ func (p *memoryPartition) serialize(w io.WriteSeeker) error {
 
 			fileMet.offset = currentOffset
 
-			for _, point := range met.points {
+			pointIter := met.points.NewIterator()
+			for pointIter.Next() {
+				point, err := pointIter.Value()
+				if err != nil {
+					return err
+				}
+
 				err = binary.Write(gzipWriter, binary.LittleEndian, point)
+				if err != nil {
+					return err
+				}
 			}
 
 			err = gzipWriter.Flush()
