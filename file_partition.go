@@ -322,6 +322,34 @@ func (p *filePartition) fetchPoints(source, metric string,
 	return points, nil
 }
 
+func (p *filePartition) getSources() []string {
+	sources := []string{}
+
+	for _, src := range p.sources {
+		sources = append(sources, src.name)
+	}
+
+	return sources
+}
+
+func (p *filePartition) getMetrics(source string) []string {
+	metrics := []string{}
+
+	for _, src := range p.sources {
+		if src.name == source {
+			for _, met := range src.metrics {
+				metrics = append(metrics, met.name)
+			}
+		}
+
+		if src.name > source {
+			break
+		}
+	}
+
+	return metrics
+}
+
 func (p *filePartition) close() error {
 	err := p.f.Close()
 	if err != nil {

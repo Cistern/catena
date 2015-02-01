@@ -143,3 +143,79 @@ func (db *DB) Query(descs []QueryDesc) QueryResponse {
 
 	return response
 }
+
+// Sources returns a list of sources present during the given interval.
+func (db *DB) Sources(start, end int64) []string {
+	db.partitionsLock.Lock()
+	defer db.partitionsLock.Unlock()
+
+	// Get list of partitions to query
+	partitions := []partition{}
+
+	for _, part := range db.partitions {
+		if part.minTimestamp() >= start {
+			if part.minTimestamp() <= end {
+				partitions = append(partitions, part)
+				continue
+			}
+		} else {
+			if part.maxTimestamp() >= start {
+				partitions = append(partitions, part)
+				continue
+			}
+		}
+	}
+
+	sources := []string{}
+	sourcesMap := map[string]bool{}
+
+	for _, part := range partitions {
+		for _, src := range part.getSources() {
+			sourcesMap[src] = true
+		}
+	}
+
+	for src := range sourcesMap {
+		sources = append(sources, src)
+	}
+
+	return sources
+}
+
+// Metrics returns a list of metrics present for the given source during the given interval.
+func (db *DB) Metrics(source string, start, end int64) []string {
+	db.partitionsLock.Lock()
+	defer db.partitionsLock.Unlock()
+
+	// Get list of partitions to query
+	partitions := []partition{}
+
+	for _, part := range db.partitions {
+		if part.minTimestamp() >= start {
+			if part.minTimestamp() <= end {
+				partitions = append(partitions, part)
+				continue
+			}
+		} else {
+			if part.maxTimestamp() >= start {
+				partitions = append(partitions, part)
+				continue
+			}
+		}
+	}
+
+	metrics := []string{}
+	metricsMap := map[string]bool{}
+
+	for _, part := range partitions {
+		for _, met := range part.getMetrics(source) {
+			metricsMap[met] = true
+		}
+	}
+
+	for met := range metricsMap {
+		metrics = append(metrics, met)
+	}
+
+	return metrics
+}

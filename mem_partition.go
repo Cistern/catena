@@ -341,6 +341,56 @@ func (p *memoryPartition) fetchPoints(source, metric string,
 	return points, nil
 }
 
+func (p *memoryPartition) getSources() []string {
+	sources := []string{}
+
+	i := p.sources.NewIterator()
+	for i.Next() {
+		s, err := i.Value()
+		if err == nil {
+			sources = append(sources, s.name)
+		}
+	}
+
+	return sources
+}
+
+func (p *memoryPartition) getMetrics(source string) []string {
+	metrics := []string{}
+
+	var src *memorySource
+
+	i := p.sources.NewIterator()
+	for i.Next() {
+		s, err := i.Value()
+		if err != nil {
+			break
+		}
+
+		if s.name == source {
+			src = s
+		}
+
+		if s.name > source {
+			break
+		}
+	}
+
+	if src == nil {
+		return metrics
+	}
+
+	metricIterator := src.metrics.NewIterator()
+	for metricIterator.Next() {
+		m, err := metricIterator.Value()
+		if err == nil {
+			metrics = append(metrics, m.name)
+		}
+	}
+
+	return metrics
+}
+
 func (p *memoryPartition) close() error {
 	p.setReadOnly()
 

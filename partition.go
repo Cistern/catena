@@ -29,6 +29,10 @@ type partition interface {
 	fetchPoints(source, metric string,
 		start, end int64) ([]Point, error)
 
+	getSources() []string
+
+	getMetrics(source string) []string
+
 	filename() string
 
 	close() error
