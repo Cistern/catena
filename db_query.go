@@ -24,10 +24,10 @@ type Series struct {
 // query. It specifies a source, metric,
 // start, and end timestamps.
 type QueryDesc struct {
-	Source string
-	Metric string
-	Start  int64
-	End    int64
+	Source string `json:"source"`
+	Metric string `json:"metric"`
+	Start  int64  `json:"start"`
+	End    int64  `json:"end"`
 }
 
 // A QueryResponse is returned after querying
