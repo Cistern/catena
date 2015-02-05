@@ -39,8 +39,8 @@ type QueryResponse struct {
 // Query fetches series matching the QueryDescs
 // and returns a QueryResponse.
 func (db *DB) Query(descs []QueryDesc) QueryResponse {
-	db.partitionsLock.Lock()
-	defer db.partitionsLock.Unlock()
+	db.partitionsLock.RLock()
+	defer db.partitionsLock.RUnlock()
 
 	response := QueryResponse{
 		Series: []Series{},
@@ -146,8 +146,8 @@ func (db *DB) Query(descs []QueryDesc) QueryResponse {
 
 // Sources returns a list of sources present during the given interval.
 func (db *DB) Sources(start, end int64) []string {
-	db.partitionsLock.Lock()
-	defer db.partitionsLock.Unlock()
+	db.partitionsLock.RLock()
+	defer db.partitionsLock.RUnlock()
 
 	// Get list of partitions to query
 	partitions := []partition{}
@@ -184,8 +184,8 @@ func (db *DB) Sources(start, end int64) []string {
 
 // Metrics returns a list of metrics present for the given source during the given interval.
 func (db *DB) Metrics(source string, start, end int64) []string {
-	db.partitionsLock.Lock()
-	defer db.partitionsLock.Unlock()
+	db.partitionsLock.RLock()
+	defer db.partitionsLock.RUnlock()
 
 	// Get list of partitions to query
 	partitions := []partition{}
