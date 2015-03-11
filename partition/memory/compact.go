@@ -11,7 +11,7 @@ import (
 	"github.com/PreetamJinka/catena/partition/disk"
 )
 
-const extentSize = 3600
+const extentSize = 10
 
 var (
 	errorPartitionNotReadyOnly = errors.New("partition/memory: partition is not read only")
@@ -78,7 +78,7 @@ func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 
 				ext.offset = currentOffset
 
-				err = binary.Write(gzipWriter, binary.LittleEndian, metric.points)
+				err = binary.Write(gzipWriter, binary.LittleEndian, ext.points)
 				if err != nil {
 					return err
 				}

@@ -1,4 +1,4 @@
-package memory
+package partition
 
 import (
 	"fmt"
@@ -10,11 +10,12 @@ import (
 
 	"github.com/PreetamJinka/catena"
 	"github.com/PreetamJinka/catena/partition/disk"
+	"github.com/PreetamJinka/catena/partition/memory"
 	"github.com/PreetamJinka/catena/wal"
 )
 
 func TestMemoryPartition1(t *testing.T) {
-	timestamps := 3600 * 2
+	timestamps := 30
 	sources := 1
 	metrics := 10
 
@@ -23,7 +24,7 @@ func TestMemoryPartition1(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p := NewMemoryPartition(WAL)
+	p := memory.NewMemoryPartition(WAL)
 
 	workQueue := make(chan []catena.Row, timestamps*sources)
 
@@ -100,7 +101,7 @@ func TestMemoryPartition1(t *testing.T) {
 
 	start = time.Now()
 
-	p, err = RecoverMemoryPartition(WAL)
+	p, err = memory.RecoverMemoryPartition(WAL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +126,7 @@ func TestMemoryPartition1(t *testing.T) {
 		t.Fatal(expected)
 	}
 
-	p.readOnly = true
+	p.SetReadOnly()
 
 	f, err := os.Create("/tmp/compact.part")
 	if err != nil {
@@ -146,9 +147,28 @@ func TestMemoryPartition1(t *testing.T) {
 
 	f.Close()
 
-	_, err = disk.OpenDiskPartition("/tmp/compact.part")
+	d, err := disk.OpenDiskPartition("/tmp/compact.part")
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	diskIter, err := d.NewIterator("source_0", "metric_0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = 0
+	for diskIter.Next() == nil {
+		if diskIter.Point().Timestamp != expected {
+			t.Fatalf("expected timestamp %d; got %d", expected, diskIter.Point().Timestamp)
+		}
+
+		expected++
+	}
+	diskIter.Close()
+
+	err = d.Destroy()
+	if err != nil {
+		t.Fatal(err)
+	}
 }

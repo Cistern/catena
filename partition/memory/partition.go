@@ -139,6 +139,13 @@ func (p *MemoryPartition) InsertRows(rows []catena.Row) error {
 	return nil
 }
 
+// SetReadOnly sets the partition mode to read-only.
+func (m *MemoryPartition) SetReadOnly() {
+	m.partitionLock.Lock()
+	m.readOnly = true
+	m.partitionLock.Unlock()
+}
+
 // Destroy destroys the memory partition as well as its WAL.
 func (m *MemoryPartition) Destroy() error {
 	m.partitionLock.Lock()

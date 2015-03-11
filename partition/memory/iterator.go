@@ -46,13 +46,15 @@ func (i *memoryIterator) Point() catena.Point {
 }
 
 // Reset moves the iterator to the first available point.
-func (i *memoryIterator) Reset() {
+func (i *memoryIterator) Reset() error {
 	i.currentIndex = 0
 
 	i.metric.lock.Lock()
 	defer i.metric.lock.Unlock()
 
 	i.currentPoint = i.metric.points[0]
+
+	return nil
 }
 
 // Seek moves the iterator to the first timestamp greater

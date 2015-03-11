@@ -6,7 +6,7 @@ import (
 
 // Iterator is an iterator over a sequence of points.
 type Iterator interface {
-	Reset()
+	Reset() error
 	Next() error
 	Point() catena.Point
 	Seek(int64) error

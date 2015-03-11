@@ -18,7 +18,8 @@ type DiskPartition struct {
 	maxTS int64
 
 	// File on disk
-	f *os.File
+	f        *os.File
+	filename string
 
 	// Memory mapped backed by f
 	mapped []byte
@@ -39,12 +40,6 @@ type diskMetric struct {
 	numPoints uint32
 
 	extents []diskExtent
-}
-
-type diskExtent struct {
-	startTS   int64
-	offset    int64
-	numPoints uint32
 }
 
 func OpenDiskPartition(filename string) (*DiskPartition, error) {
@@ -69,9 +64,10 @@ func OpenDiskPartition(filename string) (*DiskPartition, error) {
 	}
 
 	p := &DiskPartition{
-		f:       f,
-		mapped:  mapped,
-		sources: map[string]diskSource{},
+		f:        f,
+		filename: filename,
+		mapped:   mapped,
+		sources:  map[string]diskSource{},
 	}
 
 	// Attempt to load the metadata.
@@ -253,4 +249,23 @@ func (p *DiskPartition) readMetadata() error {
 
 	// Internal state has been updated without issues.
 	return nil
+}
+
+func (p *DiskPartition) Close() error {
+	err := syscall.Munmap(p.mapped)
+	if err != nil {
+		return err
+	}
+
+	p.mapped = nil
+	return p.f.Close()
+}
+
+func (p *DiskPartition) Destroy() error {
+	err := p.Close()
+	if err != nil {
+		return err
+	}
+
+	return os.Remove(p.filename)
 }
