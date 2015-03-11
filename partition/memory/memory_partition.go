@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/PreetamJinka/catena"
 	"github.com/PreetamJinka/catena/wal"
@@ -123,15 +124,17 @@ func (p *MemoryPartition) InsertRows(rows []catena.Row) error {
 		metric.insertPoints([]catena.Point{row.Point})
 	}
 
-	p.partitionLock.Lock()
-	if minTS < p.minTS {
-		p.minTS = minTS
+	for min := atomic.LoadInt64(&p.minTS); min > minTS; {
+		if atomic.CompareAndSwapInt64(&p.minTS, min, minTS) {
+			break
+		}
 	}
 
-	if maxTS > p.maxTS {
-		p.maxTS = maxTS
+	for max := atomic.LoadInt64(&p.maxTS); max < maxTS; {
+		if atomic.CompareAndSwapInt64(&p.maxTS, max, maxTS) {
+			break
+		}
 	}
-	p.partitionLock.Unlock()
 
 	return nil
 }

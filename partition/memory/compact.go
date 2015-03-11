@@ -6,13 +6,35 @@ import (
 	"errors"
 	"io"
 	"sort"
+
+	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition/disk"
 )
+
+const extentSize = 3600
 
 var (
 	errorPartitionNotReadyOnly = errors.New("partition/memory: partition is not read only")
 )
 
-const snapshotMagic = uint32(0xcafec0de)
+type metaKey struct {
+	source string
+	metric string
+}
+
+type extent struct {
+	startTS   int64
+	offset    int64
+	numPoints uint32
+	points    []catena.Point
+}
+
+type metaValue struct {
+	offset    int64
+	numPoints uint32
+
+	extents []extent
+}
 
 func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 	p.partitionLock.RLock()
@@ -20,16 +42,6 @@ func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 
 	if !p.readOnly {
 		return errorPartitionNotReadyOnly
-	}
-
-	type metaKey struct {
-		source string
-		metric string
-	}
-
-	type metaValue struct {
-		Offset    int64
-		NumPoints uint32
 	}
 
 	meta := map[metaKey]metaValue{}
@@ -45,24 +57,43 @@ func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 		for metricName, metric := range source.metrics {
 			metricsBySource[sourceName] = append(metricsBySource[sourceName], metricName)
 
-			gzipWriter.Reset(w)
+			extents := splitIntoExtents(metric.points)
 
 			currentOffset, err := w.Seek(0, 1)
 			if err != nil {
 				return err
 			}
 
-			meta[metaKey{sourceName, metricName}] = metaValue{currentOffset, uint32(len(metric.points))}
-
-			err = binary.Write(gzipWriter, binary.LittleEndian, metric.points)
-			if err != nil {
-				return err
+			metaVal := metaValue{
+				offset:    currentOffset,
+				numPoints: uint32(len(metric.points)),
 			}
 
-			err = gzipWriter.Flush()
-			if err != nil {
-				return err
+			for extentIndex, ext := range extents {
+				gzipWriter.Reset(w)
+				currentOffset, err := w.Seek(0, 1)
+				if err != nil {
+					return err
+				}
+
+				ext.offset = currentOffset
+
+				err = binary.Write(gzipWriter, binary.LittleEndian, metric.points)
+				if err != nil {
+					return err
+				}
+
+				err = gzipWriter.Flush()
+				if err != nil {
+					return err
+				}
+
+				extents[extentIndex] = ext
 			}
+
+			metaVal.extents = extents
+
+			meta[metaKey{sourceName, metricName}] = metaVal
 		}
 	}
 
@@ -78,7 +109,7 @@ func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 
 	// Start writing metadata
 	// Magic sequence
-	err = binary.Write(w, binary.BigEndian, snapshotMagic)
+	err = binary.Write(w, binary.BigEndian, disk.Magic)
 	if err != nil {
 		return err
 	}
@@ -134,14 +165,36 @@ func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 
 			metadata := meta[metaKey{sourceName, metricName}]
 
-			err = binary.Write(w, binary.LittleEndian, metadata.Offset)
+			err = binary.Write(w, binary.LittleEndian, metadata.offset)
 			if err != nil {
 				return err
 			}
 
-			err = binary.Write(w, binary.LittleEndian, uint32(metadata.NumPoints))
+			err = binary.Write(w, binary.LittleEndian, uint32(metadata.numPoints))
 			if err != nil {
 				return err
+			}
+
+			err = binary.Write(w, binary.LittleEndian, uint32(len(metadata.extents)))
+			if err != nil {
+				return err
+			}
+
+			for _, ext := range metadata.extents {
+				err = binary.Write(w, binary.LittleEndian, ext.startTS)
+				if err != nil {
+					return err
+				}
+
+				err = binary.Write(w, binary.LittleEndian, ext.offset)
+				if err != nil {
+					return err
+				}
+
+				err = binary.Write(w, binary.LittleEndian, ext.numPoints)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -152,4 +205,30 @@ func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 	}
 
 	return nil
+}
+
+func splitIntoExtents(points []catena.Point) []extent {
+	extents := []extent{}
+
+	currentExtent := extent{}
+
+	for _, point := range points {
+		if currentExtent.numPoints == 0 {
+			currentExtent.startTS = point.Timestamp
+		}
+
+		currentExtent.points = append(currentExtent.points, point)
+		currentExtent.numPoints++
+
+		if currentExtent.numPoints == extentSize {
+			extents = append(extents, currentExtent)
+			currentExtent = extent{}
+		}
+	}
+
+	if currentExtent.numPoints > 0 {
+		extents = append(extents, currentExtent)
+	}
+
+	return extents
 }

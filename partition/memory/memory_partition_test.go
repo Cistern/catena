@@ -2,19 +2,21 @@ package memory
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition/disk"
 	"github.com/PreetamJinka/catena/wal"
 )
 
 func TestMemoryPartition1(t *testing.T) {
-	timestamps := 100
-	sources := 10
-	metrics := 100
+	timestamps := 3600 * 2
+	sources := 1
+	metrics := 10
 
 	WAL, err := wal.NewFileWAL("/tmp/wal.wal")
 	if err != nil {
@@ -123,8 +125,30 @@ func TestMemoryPartition1(t *testing.T) {
 		t.Fatal(expected)
 	}
 
+	p.readOnly = true
+
+	f, err := os.Create("/tmp/compact.part")
+	if err != nil {
+		p.Destroy()
+		t.Fatal(err)
+	}
+
+	err = p.Compact(f)
+	if err != nil {
+		p.Destroy()
+		t.Fatal(err)
+	}
+
 	err = p.Destroy()
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	f.Close()
+
+	_, err = disk.OpenDiskPartition("/tmp/compact.part")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 }
