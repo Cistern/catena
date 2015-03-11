@@ -1,9 +1,10 @@
-package partition
+package memory
 
 import (
 	"errors"
 
 	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition"
 )
 
 // NewIterator returns an Iterator for the partition that iterates over
@@ -14,12 +15,12 @@ func (p *MemoryPartition) NewIterator(sourceName string, metricName string) (*me
 	p.sourcesLock.Lock()
 	source, present := p.sources[sourceName]
 	if !present {
-		return nil, errors.New("partition: source not found")
+		return nil, errors.New("partition/memory: source not found")
 	}
 
 	metric, present := source.metrics[metricName]
 	if !present {
-		return nil, errors.New("partition: metric not found")
+		return nil, errors.New("partition/memory: metric not found")
 	}
 	p.sourcesLock.Unlock()
 
@@ -70,7 +71,7 @@ func (i *memoryIterator) Seek(timestamp int64) error {
 
 	i.currentPoint = i.metric.points[i.currentIndex]
 	if i.currentPoint.Timestamp < timestamp {
-		return errors.New("partition: could not seek to requested timestamp")
+		return errors.New("partition/memory: could not seek to requested timestamp")
 	}
 
 	return nil
@@ -95,7 +96,7 @@ func (i *memoryIterator) Next() error {
 	}
 
 	if i.currentIndex == len(i.metric.points)-1 {
-		return errors.New("partition: iterator index out of bounds")
+		return errors.New("partition/memory: iterator index out of bounds")
 	}
 
 	i.currentIndex++
@@ -110,4 +111,4 @@ func (i *memoryIterator) Close() {
 }
 
 // memoryIterator is an Iterator.
-var _ Iterator = &memoryIterator{}
+var _ partition.Iterator = &memoryIterator{}

@@ -1,4 +1,4 @@
-package partition
+package memory
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ import (
 func TestMemoryPartition1(t *testing.T) {
 	timestamps := 100
 	sources := 10
-	metrics := 1000
+	metrics := 100
 
 	WAL, err := wal.NewFileWAL("/tmp/wal.wal")
 	if err != nil {
