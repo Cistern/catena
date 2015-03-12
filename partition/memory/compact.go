@@ -11,7 +11,7 @@ import (
 	"github.com/PreetamJinka/catena/partition/disk"
 )
 
-const extentSize = 10
+const extentSize = 3600
 
 var (
 	errorPartitionNotReadyOnly = errors.New("partition/memory: partition is not read only")

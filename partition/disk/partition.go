@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os"
 	"syscall"
+
+	"github.com/PreetamJinka/catena/partition"
 )
 
 const Magic = uint32(0xcafec0de)
@@ -249,6 +251,25 @@ func (p *DiskPartition) readMetadata() error {
 
 	// Internal state has been updated without issues.
 	return nil
+}
+
+func (p *DiskPartition) InsertRows(rows []partition.Row) error {
+	return errors.New("partition/disk: read only")
+}
+
+func (p *DiskPartition) MinTimestamp() int64 {
+	return p.minTS
+}
+
+func (p *DiskPartition) MaxTimestamp() int64 {
+	return p.maxTS
+}
+
+func (p *DiskPartition) ReadOnly() bool {
+	return true
+}
+
+func (p *DiskPartition) SetReadOnly() {
 }
 
 func (p *DiskPartition) Close() error {

@@ -12,6 +12,6 @@ type Point partition.Point
 
 type Row partition.Row
 
-var _ = &disk.DiskPartition{}
-var _ = &memory.MemoryPartition{}
+var _ partition.Partition = &disk.DiskPartition{}
+var _ partition.Partition = &memory.MemoryPartition{}
 var _ iterator.Iterator

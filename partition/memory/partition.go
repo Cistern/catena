@@ -124,13 +124,13 @@ func (p *MemoryPartition) InsertRows(rows []partition.Row) error {
 		metric.insertPoints([]partition.Point{row.Point})
 	}
 
-	for min := atomic.LoadInt64(&p.minTS); min > minTS; {
+	for min := atomic.LoadInt64(&p.minTS); min > minTS; min = atomic.LoadInt64(&p.minTS) {
 		if atomic.CompareAndSwapInt64(&p.minTS, min, minTS) {
 			break
 		}
 	}
 
-	for max := atomic.LoadInt64(&p.maxTS); max < maxTS; {
+	for max := atomic.LoadInt64(&p.maxTS); max < maxTS; max = atomic.LoadInt64(&p.maxTS) {
 		if atomic.CompareAndSwapInt64(&p.maxTS, max, maxTS) {
 			break
 		}
@@ -144,6 +144,41 @@ func (m *MemoryPartition) SetReadOnly() {
 	m.partitionLock.Lock()
 	m.readOnly = true
 	m.partitionLock.Unlock()
+}
+
+// Closes sets the memory partition to read-only, releases resources,
+// and closes its WAL.
+func (m *MemoryPartition) Close() error {
+	m.partitionLock.Lock()
+	defer m.partitionLock.Unlock()
+
+	// Close WAL
+	err := m.wal.Close()
+	if err != nil {
+		return err
+	}
+
+	m.readOnly = true
+
+	m.sources = nil
+
+	return nil
+}
+
+func (p *MemoryPartition) MinTimestamp() int64 {
+	return atomic.LoadInt64(&p.minTS)
+}
+
+func (p *MemoryPartition) MaxTimestamp() int64 {
+	return atomic.LoadInt64(&p.maxTS)
+}
+
+func (p *MemoryPartition) ReadOnly() bool {
+	p.partitionLock.RLock()
+	readOnly := p.readOnly
+	p.partitionLock.RUnlock()
+
+	return readOnly
 }
 
 // Destroy destroys the memory partition as well as its WAL.

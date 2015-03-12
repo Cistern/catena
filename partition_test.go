@@ -15,9 +15,9 @@ import (
 )
 
 func TestMemoryPartition1(t *testing.T) {
-	timestamps := 30
-	sources := 1
-	metrics := 10
+	timestamps := 10000
+	sources := 2
+	metrics := 100
 
 	WAL, err := wal.NewFileWAL("/tmp/wal.wal")
 	if err != nil {
@@ -28,7 +28,7 @@ func TestMemoryPartition1(t *testing.T) {
 
 	workQueue := make(chan []partition.Row, timestamps*sources)
 
-	parallelism := 4
+	parallelism := runtime.NumCPU()
 	runtime.GOMAXPROCS(parallelism)
 
 	for i := 0; i < timestamps; i++ {
@@ -61,7 +61,7 @@ func TestMemoryPartition1(t *testing.T) {
 			for rows := range workQueue {
 				err := p.InsertRows(rows)
 				if err != nil {
-					fmt.Println(err)
+					t.Fatal(err)
 				}
 			}
 			wg.Done()
@@ -92,7 +92,7 @@ func TestMemoryPartition1(t *testing.T) {
 		t.Fatal(expected)
 	}
 
-	WAL.Close()
+	p.Close()
 
 	WAL, err = wal.OpenFileWAL("/tmp/wal.wal")
 	if err != nil {
