@@ -7,7 +7,7 @@ import (
 	"io"
 	"sort"
 
-	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition"
 	"github.com/PreetamJinka/catena/partition/disk"
 )
 
@@ -26,7 +26,7 @@ type extent struct {
 	startTS   int64
 	offset    int64
 	numPoints uint32
-	points    []catena.Point
+	points    []partition.Point
 }
 
 type metaValue struct {
@@ -207,7 +207,7 @@ func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 	return nil
 }
 
-func splitIntoExtents(points []catena.Point) []extent {
+func splitIntoExtents(points []partition.Point) []extent {
 	extents := []extent{}
 
 	currentExtent := extent{}

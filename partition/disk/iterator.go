@@ -3,8 +3,8 @@ package disk
 import (
 	"errors"
 
-	"github.com/PreetamJinka/catena"
 	"github.com/PreetamJinka/catena/partition"
+	"github.com/PreetamJinka/catena/partition/iterator"
 )
 
 // NewIterator returns an Iterator for the partition that iterates over
@@ -42,13 +42,13 @@ type diskIterator struct {
 	metric              diskMetric
 	currentExtent       diskExtent
 	currentExtentIndex  int
-	currentExtentPoints []catena.Point
+	currentExtentPoints []partition.Point
 	currentPointIndex   int
-	currentPoint        catena.Point
+	currentPoint        partition.Point
 }
 
 // Point returns the current point.
-func (i *diskIterator) Point() catena.Point {
+func (i *diskIterator) Point() partition.Point {
 	return i.currentPoint
 }
 
@@ -134,4 +134,4 @@ func (i *diskIterator) nextExtent() error {
 }
 
 // diskIterator is an Iterator.
-var _ partition.Iterator = &diskIterator{}
+var _ iterator.Iterator = &diskIterator{}

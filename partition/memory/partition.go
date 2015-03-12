@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition"
 	"github.com/PreetamJinka/catena/wal"
 )
 
@@ -34,7 +34,7 @@ type memorySource struct {
 // memoryMetric contains an ordered slice of points.
 type memoryMetric struct {
 	name   string
-	points []catena.Point
+	points []partition.Point
 	lock   sync.Mutex
 
 	lastInsertIndex int
@@ -79,7 +79,7 @@ func RecoverMemoryPartition(WAL wal.WAL) (*MemoryPartition, error) {
 }
 
 // InsertRows inserts rows into the partition.
-func (p *MemoryPartition) InsertRows(rows []catena.Row) error {
+func (p *MemoryPartition) InsertRows(rows []partition.Row) error {
 	p.partitionLock.RLock()
 	if p.readOnly {
 		p.partitionLock.RUnlock()
@@ -121,7 +121,7 @@ func (p *MemoryPartition) InsertRows(rows []catena.Row) error {
 
 		source := p.getOrCreateSource(row.Source)
 		metric := source.getOrCreateMetric(row.Metric)
-		metric.insertPoints([]catena.Point{row.Point})
+		metric.insertPoints([]partition.Point{row.Point})
 	}
 
 	for min := atomic.LoadInt64(&p.minTS); min > minTS; {

@@ -3,7 +3,7 @@ package memory
 import (
 	"fmt"
 
-	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition"
 )
 
 func (p *MemoryPartition) getOrCreateSource(name string) *memorySource {
@@ -38,7 +38,7 @@ func (s *memorySource) getOrCreateMetric(name string) *memoryMetric {
 		if metric, present = s.metrics[name]; !present {
 			metric = &memoryMetric{
 				name:            name,
-				points:          make([]catena.Point, 0, 64),
+				points:          make([]partition.Point, 0, 64),
 				lastInsertIndex: -1,
 			}
 
@@ -51,7 +51,7 @@ func (s *memorySource) getOrCreateMetric(name string) *memoryMetric {
 	return metric
 }
 
-func (m *memoryMetric) insertPoints(points []catena.Point) {
+func (m *memoryMetric) insertPoints(points []partition.Point) {
 	m.lock.Lock()
 
 	for _, point := range points {
@@ -78,7 +78,7 @@ func (m *memoryMetric) insertPoints(points []catena.Point) {
 	m.lock.Unlock()
 }
 
-func (m *memoryMetric) insertAfter(point catena.Point, after int) int {
+func (m *memoryMetric) insertAfter(point partition.Point, after int) int {
 	lenPoints := len(m.points)
 
 	var i int

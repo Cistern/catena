@@ -3,8 +3,8 @@ package memory
 import (
 	"errors"
 
-	"github.com/PreetamJinka/catena"
 	"github.com/PreetamJinka/catena/partition"
+	"github.com/PreetamJinka/catena/partition/iterator"
 )
 
 // NewIterator returns an Iterator for the partition that iterates over
@@ -37,11 +37,11 @@ type memoryIterator struct {
 	partition    *MemoryPartition
 	metric       *memoryMetric
 	currentIndex int
-	currentPoint catena.Point
+	currentPoint partition.Point
 }
 
 // Point returns the current point.
-func (i *memoryIterator) Point() catena.Point {
+func (i *memoryIterator) Point() partition.Point {
 	return i.currentPoint
 }
 
@@ -113,4 +113,4 @@ func (i *memoryIterator) Close() {
 }
 
 // memoryIterator is an Iterator.
-var _ partition.Iterator = &memoryIterator{}
+var _ iterator.Iterator = &memoryIterator{}

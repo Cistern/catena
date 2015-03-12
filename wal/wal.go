@@ -2,7 +2,7 @@
 package wal
 
 import (
-	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition"
 )
 
 type walOperation byte
@@ -24,5 +24,5 @@ type WAL interface {
 // WALEntry is an entry in the write-ahead log.
 type WALEntry struct {
 	Operation walOperation
-	Rows      []catena.Row
+	Rows      []partition.Row
 }

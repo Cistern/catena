@@ -9,7 +9,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition"
 )
 
 var (
@@ -257,7 +257,7 @@ func (w *FileWAL) ReadEntry() (WALEntry, error) {
 	r = bytes.NewReader(uncompressed)
 
 	for i := uint32(0); i < numRows; i++ {
-		row := catena.Row{}
+		row := partition.Row{}
 
 		sourceNameLength, metricNameLength := uint8(0), uint8(0)
 

@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 
-	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition"
 )
 
 type diskExtent struct {
@@ -14,7 +14,7 @@ type diskExtent struct {
 	numPoints uint32
 }
 
-func (p *DiskPartition) extentPoints(e diskExtent) ([]catena.Point, error) {
+func (p *DiskPartition) extentPoints(e diskExtent) ([]partition.Point, error) {
 	r := bytes.NewReader(p.mapped)
 	r.Seek(e.offset, 0)
 
@@ -23,10 +23,10 @@ func (p *DiskPartition) extentPoints(e diskExtent) ([]catena.Point, error) {
 		return nil, err
 	}
 
-	points := []catena.Point{}
+	points := []partition.Point{}
 
 	for i := uint32(0); i < e.numPoints; i++ {
-		point := catena.Point{}
+		point := partition.Point{}
 
 		err = binary.Read(gzipReader, binary.LittleEndian, &point)
 		if err != nil {

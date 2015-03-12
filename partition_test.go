@@ -1,4 +1,4 @@
-package partition
+package catena
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PreetamJinka/catena"
+	"github.com/PreetamJinka/catena/partition"
 	"github.com/PreetamJinka/catena/partition/disk"
 	"github.com/PreetamJinka/catena/partition/memory"
 	"github.com/PreetamJinka/catena/wal"
@@ -26,7 +26,7 @@ func TestMemoryPartition1(t *testing.T) {
 
 	p := memory.NewMemoryPartition(WAL)
 
-	workQueue := make(chan []catena.Row, timestamps*sources)
+	workQueue := make(chan []partition.Row, timestamps*sources)
 
 	parallelism := 4
 	runtime.GOMAXPROCS(parallelism)
@@ -34,13 +34,13 @@ func TestMemoryPartition1(t *testing.T) {
 	for i := 0; i < timestamps; i++ {
 		for j := 0; j < sources; j++ {
 
-			rows := make([]catena.Row, metrics)
+			rows := make([]partition.Row, metrics)
 
 			for k := 0; k < metrics; k++ {
-				rows[k] = catena.Row{
+				rows[k] = partition.Row{
 					Source: "source_" + fmt.Sprint(j),
 					Metric: "metric_" + fmt.Sprint(k),
-					Point: catena.Point{
+					Point: partition.Point{
 						Timestamp: int64(i),
 						Value:     0,
 					},
