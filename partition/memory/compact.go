@@ -37,9 +37,6 @@ type metaValue struct {
 }
 
 func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
-	p.partitionLock.RLock()
-	defer p.partitionLock.RUnlock()
-
 	if !p.readOnly {
 		return errorPartitionNotReadyOnly
 	}

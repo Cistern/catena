@@ -9,7 +9,6 @@ import (
 )
 
 type Point partition.Point
-
 type Row partition.Row
 
 var _ partition.Partition = &disk.DiskPartition{}

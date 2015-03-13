@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"os"
+	"sync"
 	"syscall"
 
 	"github.com/PreetamJinka/catena/partition"
@@ -27,6 +28,8 @@ type DiskPartition struct {
 	mapped []byte
 
 	sources map[string]diskSource
+
+	rwMu sync.RWMutex
 }
 
 // diskSource is a metric source registered on disk.
@@ -270,6 +273,26 @@ func (p *DiskPartition) ReadOnly() bool {
 }
 
 func (p *DiskPartition) SetReadOnly() {
+}
+
+func (p *DiskPartition) Filename() string {
+	return p.filename
+}
+
+func (p *DiskPartition) Hold() {
+	p.rwMu.RLock()
+}
+
+func (p *DiskPartition) Release() {
+	p.rwMu.RUnlock()
+}
+
+func (p *DiskPartition) ExclusiveHold() {
+	p.rwMu.Lock()
+}
+
+func (p *DiskPartition) ExclusiveRelease() {
+	p.rwMu.Unlock()
 }
 
 func (p *DiskPartition) Close() error {

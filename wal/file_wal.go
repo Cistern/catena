@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io/ioutil"
+	"math"
 	"os"
 	"sync"
 
@@ -37,7 +38,7 @@ type FileWAL struct {
 // with the given file name.
 func NewFileWAL(filename string) (*FileWAL, error) {
 	// Attempt to open WAL file.
-	f, err := os.Create(filename)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_EXCL, 0666)
 	if err != nil {
 		return nil, err
 	}
@@ -76,26 +77,39 @@ func (w *FileWAL) Append(entry WALEntry) (int, error) {
 
 	var err error
 
+	scratch := [512]byte{}
+
 	// Write magic number
-	err = binary.Write(buf, binary.LittleEndian, walMagic)
+	scratch[0] = byte(walMagic)
+	scratch[1] = byte(walMagic >> 8)
+	scratch[2] = byte(walMagic >> 16)
+	scratch[3] = byte(walMagic >> 24)
+
+	_, err = buf.Write(scratch[:4])
 	if err != nil {
 		return 0, err
 	}
 
 	// Write the operation type
-	err = binary.Write(buf, binary.LittleEndian, entry.Operation)
+	err = buf.WriteByte(byte(entry.Operation))
 	if err != nil {
 		return 0, err
 	}
 
 	// Write the number of rows
-	err = binary.Write(buf, binary.LittleEndian, uint32(len(entry.Rows)))
+	numRows := uint32(len(entry.Rows))
+	scratch[0] = byte(numRows)
+	scratch[1] = byte(numRows >> 8)
+	scratch[2] = byte(numRows >> 16)
+	scratch[3] = byte(numRows >> 24)
+
+	_, err = buf.Write(scratch[:4])
 	if err != nil {
 		return 0, err
 	}
 
 	// Write the size of the entry (0 for now)
-	err = binary.Write(buf, binary.LittleEndian, uint32(0))
+	_, err = buf.Write(scratch[4:8])
 	if err != nil {
 		return 0, err
 	}
@@ -107,13 +121,7 @@ func (w *FileWAL) Append(entry WALEntry) (int, error) {
 
 	for _, row := range entry.Rows {
 		// Write source name length
-		err = binary.Write(gzipWriter, binary.LittleEndian, uint8(len(row.Source)))
-		if err != nil {
-			return 0, err
-		}
-
-		// Write metric name length
-		err = binary.Write(gzipWriter, binary.LittleEndian, uint8(len(row.Metric)))
+		_, err = gzipWriter.Write([]byte{byte(len(row.Source)), byte(len(row.Metric))})
 		if err != nil {
 			return 0, err
 		}
@@ -125,7 +133,29 @@ func (w *FileWAL) Append(entry WALEntry) (int, error) {
 		}
 
 		// Write timestamp and value
-		err = binary.Write(gzipWriter, binary.LittleEndian, row.Point)
+		scratch[0] = byte(row.Point.Timestamp)
+		scratch[1] = byte(row.Point.Timestamp >> (8 * 1))
+		scratch[2] = byte(row.Point.Timestamp >> (8 * 2))
+		scratch[3] = byte(row.Point.Timestamp >> (8 * 3))
+		scratch[4] = byte(row.Point.Timestamp >> (8 * 4))
+		scratch[5] = byte(row.Point.Timestamp >> (8 * 5))
+		scratch[6] = byte(row.Point.Timestamp >> (8 * 6))
+		scratch[7] = byte(row.Point.Timestamp >> (8 * 7))
+		_, err = gzipWriter.Write(scratch[:8])
+		if err != nil {
+			return 0, err
+		}
+
+		valueBits := math.Float64bits(row.Point.Value)
+		scratch[0] = byte(valueBits)
+		scratch[1] = byte(valueBits >> (8 * 1))
+		scratch[2] = byte(valueBits >> (8 * 2))
+		scratch[3] = byte(valueBits >> (8 * 3))
+		scratch[4] = byte(valueBits >> (8 * 4))
+		scratch[5] = byte(valueBits >> (8 * 5))
+		scratch[6] = byte(valueBits >> (8 * 6))
+		scratch[7] = byte(valueBits >> (8 * 7))
+		_, err = gzipWriter.Write(scratch[:8])
 		if err != nil {
 			return 0, err
 		}
@@ -141,13 +171,13 @@ func (w *FileWAL) Append(entry WALEntry) (int, error) {
 	result := buf.Bytes()
 
 	// Write the size of the entry
-	entrySizeBuf := &bytes.Buffer{}
-	err = binary.Write(entrySizeBuf, binary.LittleEndian, uint32(entrySize))
-	if err != nil {
-		return 0, err
-	}
+	entrySizeUint32 := uint32(entrySize)
+	scratch[0] = byte(entrySizeUint32)
+	scratch[1] = byte(entrySizeUint32 >> 8)
+	scratch[2] = byte(entrySizeUint32 >> 16)
+	scratch[3] = byte(entrySizeUint32 >> 24)
 
-	copy(result[9:13], entrySizeBuf.Bytes())
+	copy(result[9:13], scratch[:4])
 
 	w.lock.Lock()
 	// Record the current offset so we can truncate

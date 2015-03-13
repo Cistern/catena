@@ -10,7 +10,7 @@ import (
 // NewIterator returns an Iterator for the partition that iterates over
 // a sequence of points for the given source and metric.
 func (p *MemoryPartition) NewIterator(sourceName string, metricName string) (*memoryIterator, error) {
-	p.partitionLock.RLock()
+	p.Hold()
 
 	p.sourcesLock.Lock()
 	source, present := p.sources[sourceName]
@@ -109,7 +109,7 @@ func (i *memoryIterator) Next() error {
 
 // Close closes the iterator.
 func (i *memoryIterator) Close() {
-	i.partition.partitionLock.RUnlock()
+	i.partition.Release()
 }
 
 // memoryIterator is an Iterator.

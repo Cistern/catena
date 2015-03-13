@@ -3,6 +3,7 @@ package memory
 import (
 	"errors"
 	"io"
+	"math"
 	"sync"
 	"sync/atomic"
 
@@ -46,6 +47,8 @@ func NewMemoryPartition(WAL wal.WAL) *MemoryPartition {
 		readOnly: false,
 		sources:  map[string]*memorySource{},
 		wal:      WAL,
+		minTS:    math.MaxInt64,
+		maxTS:    math.MinInt64,
 	}
 
 	return &p
@@ -56,6 +59,8 @@ func RecoverMemoryPartition(WAL wal.WAL) (*MemoryPartition, error) {
 	p := &MemoryPartition{
 		readOnly: false,
 		sources:  map[string]*memorySource{},
+		minTS:    math.MaxInt64,
+		maxTS:    math.MinInt64,
 	}
 
 	var entry wal.WALEntry
@@ -80,9 +85,7 @@ func RecoverMemoryPartition(WAL wal.WAL) (*MemoryPartition, error) {
 
 // InsertRows inserts rows into the partition.
 func (p *MemoryPartition) InsertRows(rows []partition.Row) error {
-	p.partitionLock.RLock()
 	if p.readOnly {
-		p.partitionLock.RUnlock()
 		return errors.New("partition/memory: read only")
 	}
 
@@ -93,20 +96,17 @@ func (p *MemoryPartition) InsertRows(rows []partition.Row) error {
 		})
 
 		if err != nil {
-			p.partitionLock.RUnlock()
 			return err
 		}
 	}
-	p.partitionLock.RUnlock()
 
 	var (
 		minTS int64
 		maxTS int64
 	)
 
-	for _, row := range rows {
-
-		if minTS == maxTS && minTS == 0 {
+	for i, row := range rows {
+		if i == 0 {
 			minTS = row.Timestamp
 			maxTS = row.Timestamp
 		}
@@ -141,17 +141,12 @@ func (p *MemoryPartition) InsertRows(rows []partition.Row) error {
 
 // SetReadOnly sets the partition mode to read-only.
 func (m *MemoryPartition) SetReadOnly() {
-	m.partitionLock.Lock()
 	m.readOnly = true
-	m.partitionLock.Unlock()
 }
 
 // Closes sets the memory partition to read-only, releases resources,
 // and closes its WAL.
 func (m *MemoryPartition) Close() error {
-	m.partitionLock.Lock()
-	defer m.partitionLock.Unlock()
-
 	// Close WAL
 	err := m.wal.Close()
 	if err != nil {
@@ -174,22 +169,35 @@ func (p *MemoryPartition) MaxTimestamp() int64 {
 }
 
 func (p *MemoryPartition) ReadOnly() bool {
-	p.partitionLock.RLock()
-	readOnly := p.readOnly
-	p.partitionLock.RUnlock()
+	return p.readOnly
+}
 
-	return readOnly
+func (p *MemoryPartition) Filename() string {
+	return p.wal.Filename()
+}
+
+func (p *MemoryPartition) Hold() {
+	p.partitionLock.RLock()
+}
+
+func (p *MemoryPartition) Release() {
+	p.partitionLock.RUnlock()
+}
+
+func (p *MemoryPartition) ExclusiveHold() {
+	p.partitionLock.Lock()
+}
+
+func (p *MemoryPartition) ExclusiveRelease() {
+	p.partitionLock.Unlock()
 }
 
 // Destroy destroys the memory partition as well as its WAL.
 func (m *MemoryPartition) Destroy() error {
-	m.partitionLock.Lock()
-
 	// Destroy WAL
 	err := m.wal.Destroy()
 
 	m.readOnly = true
-	m.partitionLock.Unlock()
 
 	return err
 }

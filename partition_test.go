@@ -15,8 +15,8 @@ import (
 )
 
 func TestMemoryPartition1(t *testing.T) {
-	timestamps := 10000
-	sources := 2
+	timestamps := 100
+	sources := 100
 	metrics := 100
 
 	WAL, err := wal.NewFileWAL("/tmp/wal.wal")
