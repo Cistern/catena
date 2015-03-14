@@ -142,6 +142,65 @@ func (db *DB) Close() error {
 	return nil
 }
 
+// Sources returns a slice of sources that are present within the
+// given time range.
+func (db *DB) Sources(start, end int64) []string {
+	sourcesMap := map[string]struct{}{}
+
+	i := db.partitionList.NewIterator()
+	for i.Next() {
+		val, _ := i.Value()
+
+		val.Hold()
+
+		if val.MaxTimestamp() > start && val.MinTimestamp() < end {
+			for _, source := range val.Sources() {
+				sourcesMap[source] = struct{}{}
+			}
+		}
+
+		val.Release()
+	}
+
+	sources := []string{}
+
+	for source := range sourcesMap {
+		sources = append(sources, source)
+	}
+
+	return sources
+}
+
+// Metrics returns a slice of metrics that are present within the
+// given time range for the given source.
+func (db *DB) Metrics(source string, start, end int64) []string {
+	metricsMap := map[string]struct{}{}
+
+	i := db.partitionList.NewIterator()
+	for i.Next() {
+		val, _ := i.Value()
+
+		val.Hold()
+
+		if val.MaxTimestamp() > start && val.MinTimestamp() < end {
+
+			for _, metric := range val.Metrics(source) {
+				metricsMap[metric] = struct{}{}
+			}
+		}
+
+		val.Release()
+	}
+
+	metrics := []string{}
+
+	for metric := range metricsMap {
+		metrics = append(metrics, metric)
+	}
+
+	return metrics
+}
+
 // loadPartitions reads a slice of partition file names
 // and updates the internal partition state.
 func (db *DB) loadPartitions(names []string) error {

@@ -3,6 +3,7 @@ package catena
 import (
 	"os"
 	"strings"
+	"sync/atomic"
 
 	"github.com/PreetamJinka/catena/partition"
 	"github.com/PreetamJinka/catena/partition/disk"
@@ -13,16 +14,23 @@ func (db *DB) compact() {
 
 	i := db.partitionList.NewIterator()
 	seen := 0
+	lastMin := int64(0)
 	for i.Next() {
-		seen++
-		if seen <= db.maxPartitions {
-			continue
-		}
-
 		p, err := i.Value()
 		if err != nil {
 			break
 		}
+
+		seen++
+		if seen <= db.maxPartitions {
+			lastMin = p.MinTimestamp()
+			continue
+		}
+
+		db.minTimestamp = lastMin
+
+		atomic.SwapInt64(&db.minTimestamp, lastMin)
+
 		db.partitionList.Remove(p)
 		p.ExclusiveHold()
 		p.Destroy()
