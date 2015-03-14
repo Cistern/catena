@@ -279,6 +279,45 @@ func (p *DiskPartition) Filename() string {
 	return p.filename
 }
 
+func (p *DiskPartition) Sources() []string {
+	sources := []string{}
+	for source := range p.sources {
+		sources = append(sources, source)
+	}
+
+	return sources
+}
+
+func (p *DiskPartition) Metrics(source string) []string {
+	metrics := []string{}
+
+	src, present := p.sources[source]
+	if !present {
+		return metrics
+	}
+
+	for metric := range src.metrics {
+		metrics = append(metrics, metric)
+	}
+
+	return metrics
+}
+
+func (p *DiskPartition) HasSource(source string) bool {
+	_, present := p.sources[source]
+	return present
+}
+
+func (p *DiskPartition) HasMetric(source, metric string) bool {
+	src, present := p.sources[source]
+	if !present {
+		return false
+	}
+
+	_, present = src.metrics[metric]
+	return present
+}
+
 func (p *DiskPartition) Hold() {
 	p.rwMu.RLock()
 }

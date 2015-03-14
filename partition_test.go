@@ -15,6 +15,7 @@ import (
 )
 
 func TestMemoryPartition1(t *testing.T) {
+	os.RemoveAll("/tmp/wal.wal")
 	timestamps := 100
 	sources := 100
 	metrics := 100

@@ -4,12 +4,11 @@ import (
 	"errors"
 
 	"github.com/PreetamJinka/catena/partition"
-	"github.com/PreetamJinka/catena/partition/iterator"
 )
 
 // NewIterator returns an Iterator for the partition that iterates over
 // a sequence of points for the given source and metric.
-func (p *MemoryPartition) NewIterator(sourceName string, metricName string) (*memoryIterator, error) {
+func (p *MemoryPartition) NewIterator(sourceName string, metricName string) (partition.Iterator, error) {
 	p.Hold()
 
 	p.sourcesLock.Lock()
@@ -113,4 +112,4 @@ func (i *memoryIterator) Close() {
 }
 
 // memoryIterator is an Iterator.
-var _ iterator.Iterator = &memoryIterator{}
+var _ partition.Iterator = &memoryIterator{}

@@ -4,21 +4,23 @@ import (
 	"errors"
 
 	"github.com/PreetamJinka/catena/partition"
-	"github.com/PreetamJinka/catena/partition/iterator"
 )
 
 // NewIterator returns an Iterator for the partition that iterates over
 // a sequence of points for the given source and metric.
-func (p *DiskPartition) NewIterator(sourceName string, metricName string) (*diskIterator, error) {
+func (p *DiskPartition) NewIterator(sourceName string, metricName string) (partition.Iterator, error) {
+	p.Hold()
 	i := &diskIterator{}
 
 	source, present := p.sources[sourceName]
 	if !present {
+		p.Release()
 		return nil, errors.New("partition/disk: source not found")
 	}
 
 	metric, present := source.metrics[metricName]
 	if !present {
+		p.Release()
 		return nil, errors.New("partition/disk: metric not found")
 	}
 
@@ -28,6 +30,7 @@ func (p *DiskPartition) NewIterator(sourceName string, metricName string) (*disk
 
 	err := i.Reset()
 	if err != nil {
+		p.Release()
 		return nil, err
 	}
 
@@ -74,7 +77,7 @@ func (i *diskIterator) Reset() error {
 func (i *diskIterator) Seek(timestamp int64) error {
 	i.Reset()
 
-	for i.currentExtent.startTS >= timestamp {
+	for i.currentExtent.startTS <= timestamp {
 		if i.currentExtentPoints[len(i.currentExtentPoints)-1].Timestamp < timestamp {
 			err := i.nextExtent()
 			if err != nil {
@@ -110,6 +113,7 @@ func (i *diskIterator) Next() error {
 
 // Close closes the iterator.
 func (i *diskIterator) Close() {
+	i.partition.Release()
 	i.currentExtentPoints = nil
 }
 
@@ -134,4 +138,4 @@ func (i *diskIterator) nextExtent() error {
 }
 
 // diskIterator is an Iterator.
-var _ iterator.Iterator = &diskIterator{}
+var _ partition.Iterator = &diskIterator{}

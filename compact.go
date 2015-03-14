@@ -15,8 +15,7 @@ func (db *DB) compact() {
 	seen := 0
 	for i.Next() {
 		seen++
-
-		if seen < db.maxPartitions {
+		if seen <= db.maxPartitions {
 			continue
 		}
 
@@ -36,12 +35,12 @@ func (db *DB) compact() {
 	i = db.partitionList.NewIterator()
 	for i.Next() {
 		seen++
-
-		if seen < 3 {
+		if seen <= 2 {
 			continue
 		}
 
 		p, _ := i.Value()
+
 		if !p.ReadOnly() {
 			p.ExclusiveHold()
 			p.SetReadOnly()
