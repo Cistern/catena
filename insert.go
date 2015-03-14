@@ -10,10 +10,9 @@ import (
 	"github.com/PreetamJinka/catena/partition"
 	"github.com/PreetamJinka/catena/partition/memory"
 	"github.com/PreetamJinka/catena/wal"
-
-	"github.com/VividCortex/trace"
 )
 
+// InsertRows inserts the given rows into the database.
 func (db *DB) InsertRows(rows []Row) error {
 	keyToRows := map[int][]Row{}
 
@@ -74,8 +73,6 @@ func (db *DB) InsertRows(rows []Row) error {
 			if db.partitionList.Size() == 0 ||
 				int64(key) > atomic.LoadInt64(&db.maxTimestamp)/db.partitionSize {
 
-				trace.Trace("creating new partition")
-
 				// Need to make a new partition
 				newPartitionID := atomic.LoadInt64(&db.lastPartitionID) + 1
 				w, err := wal.NewFileWAL(filepath.Join(db.baseDir,
@@ -83,7 +80,6 @@ func (db *DB) InsertRows(rows []Row) error {
 				if err != nil {
 					// Couldn't create the WAL. Maybe another writer has created
 					// the WAL file. Retry.
-					trace.Trace("couldn't create WAL")
 					db.partitionCreateLock.Unlock()
 					goto FIND_PARTITION
 				}
@@ -98,7 +94,6 @@ func (db *DB) InsertRows(rows []Row) error {
 				//}
 
 				if !atomic.CompareAndSwapInt64(&db.lastPartitionID, newPartitionID-1, newPartitionID) {
-					trace.Trace("couldn't CAS lastPartitionID")
 					p.Release()
 					p.Destroy()
 					db.partitionCreateLock.Unlock()

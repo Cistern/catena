@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"github.com/PreetamJinka/catena/partition"
-
-	"github.com/VividCortex/trace"
 )
 
+// An Iterator is a cursor over an array of points
+// for a source and metric.
 type Iterator struct {
 	source, metric string
 	db             *DB
@@ -15,6 +15,7 @@ type Iterator struct {
 	partition.Iterator
 }
 
+// NewIterator creates a new Iterator for the given source and metric.
 func (db *DB) NewIterator(source, metric string) (*Iterator, error) {
 	var p partition.Partition
 
@@ -56,6 +57,7 @@ func (db *DB) NewIterator(source, metric string) (*Iterator, error) {
 	}, nil
 }
 
+// Next advances i to the next available point.
 func (i *Iterator) Next() error {
 	currentPoint := i.Point()
 	err := i.Iterator.Next()
@@ -67,6 +69,8 @@ func (i *Iterator) Next() error {
 	return err
 }
 
+// Seek moves the iterator to the first timestamp greater than
+// or equal to timestamp.
 func (i *Iterator) Seek(timestamp int64) error {
 	if i.Iterator != nil {
 		i.Iterator.Close()
@@ -87,7 +91,6 @@ func (i *Iterator) Seek(timestamp int64) error {
 			}
 
 			p = val
-			trace.Trace(val.MinTimestamp())
 
 			break
 		} else {
@@ -118,6 +121,7 @@ func (i *Iterator) Seek(timestamp int64) error {
 	return nil
 }
 
+// Reset moves i to the first available timestamp.
 func (i *Iterator) Reset() error {
 	i.Iterator.Close()
 
@@ -156,6 +160,8 @@ func (i *Iterator) Reset() error {
 	return nil
 }
 
+// Close closes the iterator. Iterators MUST be closed to unblock
+// the compactor!
 func (i *Iterator) Close() {
 	if i.Iterator == nil {
 		return

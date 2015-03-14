@@ -64,6 +64,9 @@ func NewDB(baseDir string, partitionSize, maxPartitions int) (*DB, error) {
 		partitionList: newPartitionList(),
 	}
 
+	// Start up the compactor.
+	// TODO: use a semaphore to only have a single compactor
+	// at a time.
 	go func() {
 		for _ = range time.Tick(time.Millisecond * 50) {
 			db.compact()
@@ -205,6 +208,8 @@ func (db *DB) loadPartitions(names []string) error {
 				return err
 			}
 		}
+
+		// No need for locks here.
 
 		if db.partitionList.Size() == 1 {
 			db.minTimestamp = p.MinTimestamp()
