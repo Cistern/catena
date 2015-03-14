@@ -68,7 +68,9 @@ func (i *Iterator) Next() error {
 }
 
 func (i *Iterator) Seek(timestamp int64) error {
-	i.Iterator.Close()
+	if i.Iterator != nil {
+		i.Iterator.Close()
+	}
 
 	i.Iterator = nil
 

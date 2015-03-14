@@ -173,5 +173,92 @@ func TestIterator(t *testing.T) {
 		t.Fatal("expected an error after seeking to a timestamp in a dropped partition")
 	}
 
+	err = i.Seek(5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if i.Point().Timestamp != 5 {
+		t.Fatalf("expected timestamp %d, got %d", 5, i.Point().Timestamp)
+	}
+
+	// timestamp 6
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// timestamp 7
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// timestamp 8
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// timestamp 9
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Crossing partition boundary
+
+	// timestamp 10
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// timestamp 11
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if i.Point().Timestamp != 11 {
+		t.Fatalf("expected timestamp %d, got %d", 11, i.Point().Timestamp)
+	}
+
+	// timestamp 12
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// timestamp 13
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// timestamp 14
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Crossing partition boundary
+
+	// timestamp 15
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// timestamp 16
+	err = i.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if i.Point().Timestamp != 16 {
+		t.Fatalf("expected timestamp %d, got %d", 16, i.Point().Timestamp)
+	}
+
 	i.Close()
 }
