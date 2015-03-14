@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/PreetamJinka/catena/partition"
 )
@@ -64,5 +63,8 @@ func TestDB(t *testing.T) {
 	close(work)
 	wg.Wait()
 
-	time.Sleep(2 * time.Second)
+	err = db.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }

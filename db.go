@@ -120,6 +120,28 @@ func OpenDB(baseDir string, partitionSize, maxPartitions int) (*DB, error) {
 	return db, nil
 }
 
+// Close closes the DB and releases
+func (db *DB) Close() error {
+	i := db.partitionList.NewIterator()
+	for i.Next() {
+		val, _ := i.Value()
+		db.partitionList.Remove(val)
+
+		val.ExclusiveHold()
+		val.SetReadOnly()
+
+		err := val.Close()
+		if err != nil {
+			val.ExclusiveRelease()
+			return err
+		}
+
+		val.ExclusiveRelease()
+	}
+
+	return nil
+}
+
 // loadPartitions reads a slice of partition file names
 // and updates the internal partition state.
 func (db *DB) loadPartitions(names []string) error {
