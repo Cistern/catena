@@ -7,152 +7,225 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/PreetamJinka/catena/partition"
+	"github.com/PreetamJinka/catena/partition/disk"
+	"github.com/PreetamJinka/catena/partition/memory"
+	"github.com/PreetamJinka/catena/wal"
 )
 
-// InsertRows inserts rows into the database.
-func (db *DB) InsertRows(rows Rows) error {
-	db.partitionsLock.Lock()
-	defer db.partitionsLock.Unlock()
+// DB is a handle to a catena database.
+type DB struct {
+	baseDir string
 
-	partitionMults := map[int]partition{}
+	partitionList *partitionList
 
-	maxTSInDB := 0
+	lastPartitionID int64
+	partitionSize   int64
+	maxPartitions   int
 
-	for i, part := range db.partitions {
-		if i == 0 {
-			maxTSInDB = int(part.maxTimestamp())
+	minTimestamp int64
+	maxTimestamp int64
+
+	partitionCreateLock sync.Mutex
+}
+
+// NewDB creates a new DB located in baseDir. If baseDir
+// does not exist it will be created. An error is returned
+// if baseDir is not empty.
+func NewDB(baseDir string, partitionSize, maxPartitions int) (*DB, error) {
+	err := os.MkdirAll(baseDir, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	dir, err := os.Open(baseDir)
+	if err != nil {
+		return nil, err
+	}
+
+	defer dir.Close()
+
+	names, err := dir.Readdirnames(-1)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(names) > 0 {
+		return nil, errors.New("catena: NewDB called with non-empty directory")
+	}
+
+	db := &DB{
+		baseDir:       baseDir,
+		partitionSize: int64(partitionSize),
+		maxPartitions: maxPartitions,
+		partitionList: newPartitionList(),
+	}
+
+	// Start up the compactor.
+	// TODO: use a semaphore to only have a single compactor
+	// at a time.
+	go func() {
+		for _ = range time.Tick(time.Millisecond * 50) {
+			db.compact()
+		}
+	}()
+
+	return db, nil
+}
+
+// OpenDB opens a DB located in baseDir.
+func OpenDB(baseDir string, partitionSize, maxPartitions int) (*DB, error) {
+	db := &DB{
+		baseDir:       baseDir,
+		partitionSize: int64(partitionSize),
+		maxPartitions: maxPartitions,
+		partitionList: newPartitionList(),
+	}
+
+	dir, err := os.Open(baseDir)
+	if err != nil {
+		return nil, err
+	}
+
+	defer dir.Close()
+
+	dirInfo, err := dir.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	if !dirInfo.IsDir() {
+		return nil, errors.New("catena: baseDir is not a directory")
+	}
+
+	names, err := dir.Readdirnames(-1)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.loadPartitions(names)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		for _ = range time.Tick(time.Millisecond * 50) {
+			db.compact()
+		}
+	}()
+
+	return db, nil
+}
+
+// loadPartitions reads a slice of partition file names
+// and updates the internal partition state.
+func (db *DB) loadPartitions(names []string) error {
+
+	// Slice of partition IDs
+	partitions := []int{}
+
+	isWAL := map[int]bool{}
+
+	for _, name := range names {
+		partitionNum := -1
+
+		wal := false
+
+		if strings.HasSuffix(name, ".wal") {
+			_, err := fmt.Sscanf(name, "%d.wal", &partitionNum)
+			if err != nil {
+				return err
+			}
+
+			wal = true
 		}
 
-		key := int(part.maxTimestamp()) / db.partitionModulus
-		partitionMults[key] = part
-
-		if int(part.maxTimestamp()) > maxTSInDB {
-			maxTSInDB = int(part.maxTimestamp())
+		if strings.HasSuffix(name, ".part") {
+			_, err := fmt.Sscanf(name, "%d.part", &partitionNum)
+			if err != nil {
+				return err
+			}
 		}
-	}
 
-	keyToRows := map[int]Rows{}
-
-	for _, row := range rows {
-		key := int(row.Timestamp) / db.partitionModulus
-		keyToRows[key] = append(keyToRows[key], row)
-	}
-
-	for key, _ := range keyToRows {
-		if part := partitionMults[key]; part != nil && part.readOnly() {
-			return errors.New("catena: insert into read-only partition(s)")
+		if partitionNum < 0 {
+			return errors.New(fmt.Sprintf("catena: invalid partition %s", name))
 		}
-	}
 
-	keys := []int{}
-	for key := range keyToRows {
-		keys = append(keys, key)
-	}
-	sort.Ints(keys)
-
-	for _, key := range keys {
-		part := partitionMults[key]
-		if part == nil {
-
-			// make sure the new keys are strictly
-			// larger than the largest timestamp
-			for _, row := range keyToRows[key] {
-				if int(row.Timestamp) < maxTSInDB && len(db.partitions) > 0 {
-					return errors.New("catena: row being inserted is too old")
+		if seenWAL, seen := isWAL[partitionNum]; seen {
+			if (seenWAL && !wal) || (!seenWAL && wal) {
+				// We have both a .wal and a .part, so
+				// we'll get rid of the .part and recompact.
+				wal = true
+				err := os.Remove(filepath.Join(db.baseDir, fmt.Sprintf("%d.part", partitionNum)))
+				if err != nil {
+					return err
 				}
 			}
+		}
 
-			// create a new memory partition
-			db.lastPartitionID++
+		isWAL[partitionNum] = wal
+	}
 
-			logger.Println("creating new partition with ID", db.lastPartitionID, "for key", key)
-			walFileName := filepath.Join(db.baseDir,
-				fmt.Sprintf("%d.wal", db.lastPartitionID))
-			log, err := newFileWAL(walFileName)
+	for partitionNum := range isWAL {
+		partitions = append(partitions, partitionNum)
+	}
 
+	// Sort the partitions in increasing order.
+	sort.Ints(partitions)
+
+	for _, part := range partitions {
+		if int64(part) > db.lastPartitionID {
+			db.lastPartitionID = int64(part)
+		}
+
+		var p partition.Partition
+		var err error
+		var filename string
+
+		if isWAL[part] {
+			filename = filepath.Join(db.baseDir,
+				fmt.Sprintf("%d.wal", part))
+
+			w, err := wal.OpenFileWAL(filename)
 			if err != nil {
 				return err
 			}
 
-			logger.Println("created new WAL:", walFileName)
-
-			mp, err := newMemoryPartition(log)
+			p, err = memory.RecoverMemoryPartition(w)
 			if err != nil {
-				log.close()
 				return err
 			}
 
-			part = mp
-			db.partitions = append(db.partitions, part)
+		} else {
+			filename = filepath.Join(db.baseDir,
+				fmt.Sprintf("%d.part", part))
 
-			go db.compactPartitions()
+			p, err = disk.OpenDiskPartition(filename)
+			if err != nil {
+				return err
+			}
 		}
 
-		rows := keyToRows[key]
-		err := part.put(rows)
+		// No need for locks here.
 
-		if err != nil {
-			return err
+		if db.partitionList.Size() == 1 {
+			db.minTimestamp = p.MinTimestamp()
+			db.maxTimestamp = p.MaxTimestamp()
 		}
+
+		if db.minTimestamp > p.MinTimestamp() {
+			db.minTimestamp = p.MinTimestamp()
+		}
+
+		if db.maxTimestamp < p.MaxTimestamp() {
+			db.maxTimestamp = p.MaxTimestamp()
+		}
+
+		db.partitionList.Insert(p)
 	}
 
 	return nil
-}
-
-// compactPartitions converts older WAL partitions
-// into compressed file partitions.
-func (db *DB) compactPartitions() {
-	db.partitionsLock.Lock()
-	defer db.partitionsLock.Unlock()
-
-	for len(db.partitions) > db.maxPartitions {
-		db.partitions[0].destroy()
-		db.partitions = db.partitions[1:]
-	}
-
-	for i := 0; i < len(db.partitions)-2; i++ {
-		part := db.partitions[i]
-
-		if !part.readOnly() {
-
-			logger.Println(part.filename(), "needs to be compacted")
-
-			logger.Println("starting compaction of", part.filename())
-
-			// Compact
-			mp := part.(*memoryPartition)
-
-			mp.setReadOnly()
-
-			walName := mp.log.filename()
-			partitionName := strings.TrimSuffix(walName, ".wal") + ".part"
-
-			f, err := os.Create(partitionName)
-			if err != nil {
-				return
-			}
-
-			err = mp.serialize(f)
-			if err == nil {
-				err = mp.destroy()
-				if err != nil {
-					logger.Println(err)
-				}
-			}
-			f.Sync()
-			f.Close()
-
-			logger.Println("compacted to", partitionName)
-
-			fp, err := openFilePartition(partitionName)
-			if err != nil {
-				return
-			}
-
-			logger.Println("loaded partition", partitionName)
-
-			db.partitions[i] = fp
-
-		}
-	}
 }

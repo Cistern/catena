@@ -1,182 +1,175 @@
 package catena
 
 import (
-	"reflect"
+	"fmt"
+	"os"
+	"runtime"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/PreetamJinka/catena/partition"
+	"github.com/PreetamJinka/catena/partition/disk"
+	"github.com/PreetamJinka/catena/partition/memory"
+	"github.com/PreetamJinka/catena/wal"
 )
 
-func TestMemoryPartition(t *testing.T) {
-	// We must open a WAL.
-	log, err := newFileWAL("/tmp/TestMemoryPartition.wal")
+func TestMemoryPartition1(t *testing.T) {
+	os.RemoveAll("/tmp/wal.wal")
+	timestamps := 100
+	sources := 100
+	metrics := 100
+
+	WAL, err := wal.NewFileWAL("/tmp/wal.wal")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	p, err := newMemoryPartition(log)
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := memory.NewMemoryPartition(WAL)
 
-	err = p.put(Rows{
-		Row{
-			Source:    "hostA",
-			Metric:    "metric.5",
-			Timestamp: 1,
-			Value:     0.234,
-		},
-		Row{
-			Source:    "hostA",
-			Metric:    "metric.4",
-			Timestamp: 2,
-			Value:     0.234,
-		},
-		Row{
-			Source:    "hostA",
-			Metric:    "metric.3",
-			Timestamp: 3,
-			Value:     0.234,
-		},
-		Row{
-			Source:    "hostA",
-			Metric:    "metric.2",
-			Timestamp: 4,
-			Value:     -123,
-		},
-		Row{
-			Source:    "hostA",
-			Metric:    "metric.1",
-			Timestamp: 5,
-			Value:     0.234,
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	workQueue := make(chan []partition.Row, timestamps*sources)
 
-	expectedPoints := []Point{
-		Point{
-			Timestamp: 3,
-			Value:     0.234,
-		},
-	}
+	parallelism := runtime.NumCPU()
+	runtime.GOMAXPROCS(parallelism)
 
-	points, err := p.fetchPoints("hostA", "metric.3", 0, 1000)
-	if err != nil {
-		t.Fatal(err)
-	}
+	for i := 0; i < timestamps; i++ {
+		for j := 0; j < sources; j++ {
 
-	if !reflect.DeepEqual(points, expectedPoints) {
-		t.Errorf("expected points %v, got %v", expectedPoints, points)
-	}
-}
+			rows := make([]partition.Row, metrics)
 
-func TestMemoryPartitionRecover(t *testing.T) {
-	// Open a new test WAL file. We truncate any existing file.
-	w, err := newFileWAL("/tmp/TestMemoryPartitionRecover.wal")
-	if err != nil {
-		t.Fatal(err)
-	}
+			for k := 0; k < metrics; k++ {
+				rows[k] = partition.Row{
+					Source: "source_" + fmt.Sprint(j),
+					Metric: "metric_" + fmt.Sprint(k),
+					Point: partition.Point{
+						Timestamp: int64(i),
+						Value:     0,
+					},
+				}
+			}
 
-	if w.lastReadOffset != 0 {
-		t.Error("expected lastReadOffset to be 0, got %d", w.lastReadOffset)
-	}
-
-	entries := []walEntry{
-		walEntry{
-			operation: operationInsert,
-			rows: Rows{
-				Row{
-					Source:    "hostA",
-					Metric:    "metric.1",
-					Timestamp: 123,
-					Value:     0.234,
-				},
-			},
-		},
-		walEntry{
-			operation: operationInsert,
-			rows: Rows{
-				Row{
-					Source:    "hostA",
-					Metric:    "metric.1",
-					Timestamp: 456,
-					Value:     0.234,
-				},
-			},
-		},
-		walEntry{
-			operation: operationInsert,
-			rows: Rows{
-				Row{
-					Source:    "hostA",
-					Metric:    "metric.1",
-					Timestamp: -456,
-					Value:     -0.234,
-				},
-			},
-		},
-		walEntry{
-			operation: operationInsert,
-			rows: Rows{
-				Row{
-					Source:    "hostA",
-					Metric:    "metric.1",
-					Timestamp: 1000,
-					Value:     -0.234,
-				},
-			},
-		},
-	}
-
-	for _, entry := range entries {
-		n, err := w.append(entry)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if n == 0 {
-			t.Errorf("expected to get non-zero bytes written, got %d", n)
+			workQueue <- rows
 		}
 	}
 
-	err = w.close()
+	wg := sync.WaitGroup{}
+	wg.Add(parallelism)
+
+	start := time.Now()
+
+	for i := 0; i < parallelism; i++ {
+		go func() {
+			for rows := range workQueue {
+				err := p.InsertRows(rows)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			wg.Done()
+		}()
+	}
+
+	close(workQueue)
+
+	wg.Wait()
+
+	t.Logf("%0.2f rows / sec\n", float64(timestamps*sources*metrics)/time.Now().Sub(start).Seconds())
+
+	i, err := p.NewIterator("source_0", "metric_0")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Open it.
-	log, err := openFileWAL("/tmp/TestMemoryPartitionRecover.wal")
+	expected := int64(0)
+	for i.Next() == nil {
+		if i.Point().Timestamp != expected {
+			t.Fatalf("expected timestamp %d; got %d", expected, i.Point().Timestamp)
+		}
+
+		expected++
+	}
+	i.Close()
+	if expected != int64(timestamps) {
+		t.Fatal(expected)
+	}
+
+	p.Close()
+
+	WAL, err = wal.OpenFileWAL("/tmp/wal.wal")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// We should recover state from the log.
-	p, err := newMemoryPartition(log)
+	start = time.Now()
+
+	p, err = memory.RecoverMemoryPartition(WAL)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expectedPoints := []Point{
-		Point{
-			Timestamp: 123,
-			Value:     0.234,
-		},
-		Point{
-			Timestamp: 456,
-			Value:     0.234,
-		},
-		Point{
-			Timestamp: 1000,
-			Value:     -0.234,
-		},
+	t.Logf("%0.2f rows / sec\n", float64(timestamps*sources*metrics)/time.Now().Sub(start).Seconds())
+
+	expected = int64(0)
+	i, err = p.NewIterator("source_0", "metric_0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i.Next() == nil {
+		if i.Point().Timestamp != expected {
+			t.Fatalf("expected timestamp %d; got %d", expected, i.Point().Timestamp)
+		}
+
+		expected++
+	}
+	i.Close()
+
+	if expected != int64(timestamps) {
+		t.Fatal(expected)
 	}
 
-	points, err := p.fetchPoints("hostA", "metric.1", 0, 1000)
+	p.SetReadOnly()
+
+	f, err := os.Create("/tmp/compact.part")
+	if err != nil {
+		p.Destroy()
+		t.Fatal(err)
+	}
+
+	err = p.Compact(f)
+	if err != nil {
+		p.Destroy()
+		t.Fatal(err)
+	}
+
+	err = p.Destroy()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(points, expectedPoints) {
-		t.Errorf("expected points %v, got %v", expectedPoints, points)
+	f.Close()
+
+	d, err := disk.OpenDiskPartition("/tmp/compact.part")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	diskIter, err := d.NewIterator("source_0", "metric_0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected = 0
+	for diskIter.Next() == nil {
+		if diskIter.Point().Timestamp != expected {
+			t.Fatalf("expected timestamp %d; got %d", expected, diskIter.Point().Timestamp)
+		}
+
+		expected++
+	}
+	diskIter.Close()
+
+	err = d.Destroy()
+	if err != nil {
+		t.Fatal(err)
 	}
 }

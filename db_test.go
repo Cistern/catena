@@ -2,101 +2,67 @@ package catena
 
 import (
 	"os"
+	"runtime"
+	"strconv"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/PreetamJinka/catena/partition"
 )
 
-func TestCatena(t *testing.T) {
-	const numPoints = 10000
+func TestDB(t *testing.T) {
+	os.RemoveAll("/tmp/catena")
 
-	os.RemoveAll("/tmp/catena/1")
-	db, err := NewDB("/tmp/catena/1")
+	db, err := NewDB("/tmp/catena", 500, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	db.partitionModulus = numPoints / 8
+	ts := int64(0)
 
-	t.Log(db.InsertRows(Rows{
-		Row{
-			Source:    "hostA",
-			Metric:    "metric.1",
-			Timestamp: 1,
-			Value:     0.234,
-		},
-		Row{
-			Source:    "hostA",
-			Metric:    "metric.3",
-			Timestamp: 1,
-			Value:     0.234,
-		},
-	}))
+	parallelism := 4
+	runtime.GOMAXPROCS(parallelism)
+	wg := sync.WaitGroup{}
+	wg.Add(parallelism)
 
-	for i := int64(2); i <= numPoints; i++ {
-		err := db.InsertRows(Rows{
-			Row{
-				Source:    "hostA",
-				Metric:    "metric.1",
-				Timestamp: i,
-				Value:     0.234,
-			},
-			Row{
-				Source:    "hostB",
-				Metric:    "metric.1",
-				Timestamp: i,
-				Value:     0.234,
-			},
-			Row{
-				Source:    "hostA",
-				Metric:    "metric.2",
-				Timestamp: i,
-				Value:     0.234,
-			},
-			Row{
-				Source:    "hostA",
-				Metric:    "metric.0",
-				Timestamp: i,
-				Value:     0.234,
-			},
-			Row{
-				Source:    "hostA",
-				Metric:    "metric.3",
-				Timestamp: i,
-				Value:     0.234,
-			},
-		})
+	work := make(chan []Row, parallelism)
 
-		if err != nil {
-			t.Fatal(err)
+	for i := 0; i < parallelism; i++ {
+		go func() {
+			for rows := range work {
+				err := db.InsertRows(rows)
+				if err != nil {
+					wg.Done()
+					t.Fatal(err)
+				}
+			}
+
+			wg.Done()
+		}()
+	}
+
+	for n := 0; n < 500; n++ {
+
+		rows := []Row{}
+		for i := 0; i < 10000; i++ {
+			rows = append(rows, Row{
+				Source: "src",
+				Metric: "met_" + strconv.Itoa(i),
+				Point: partition.Point{
+					Timestamp: ts,
+					Value:     float64(i),
+				},
+			})
 		}
+
+		ts++
+
+		work <- rows
 	}
 
-	resp := db.Query([]QueryDesc{
-		QueryDesc{
-			Source: "hostA",
-			Metric: "metric.1",
-			Start:  -10000,
-			End:    100000,
-		},
-		QueryDesc{
-			Source: "hostA",
-			Metric: "metric.3",
-			Start:  -10000,
-			End:    100000,
-		},
-	})
+	close(work)
+	wg.Wait()
 
-	if len(resp.Series) != 2 {
-		t.Fatalf("Expected 2 series, got %d", len(resp.Series))
-	}
-
-	s1 := resp.Series[0]
-	s2 := resp.Series[1]
-
-	if len(s1.Points) != numPoints {
-		t.Errorf("Expected %d points for s1, got %d", numPoints, len(s1.Points))
-	}
-
-	if len(s2.Points) != numPoints {
-		t.Errorf("Expected %d points for s2, got %d", numPoints, len(s2.Points))
-	}
+	time.Sleep(2 * time.Second)
 }
