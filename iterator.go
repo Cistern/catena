@@ -85,14 +85,13 @@ func (i *Iterator) Seek(timestamp int64) error {
 		val, _ := partitionListIter.Value()
 		val.Hold()
 
-		if val.HasMetric(i.source, i.metric) && val.MinTimestamp() <= timestamp {
+		if val.HasMetric(i.source, i.metric) && (val.MinTimestamp() >= timestamp ||
+			(val.MinTimestamp() <= timestamp && val.MaxTimestamp() >= timestamp)) {
 			if p != nil {
 				p.Release()
 			}
 
 			p = val
-
-			break
 		} else {
 			val.Release()
 		}

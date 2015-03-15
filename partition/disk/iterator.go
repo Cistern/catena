@@ -77,8 +77,17 @@ func (i *diskIterator) Reset() error {
 func (i *diskIterator) Seek(timestamp int64) error {
 	i.Reset()
 
-	for i.currentExtent.startTS <= timestamp {
-		if i.currentExtentPoints[len(i.currentExtentPoints)-1].Timestamp < timestamp {
+	for {
+		firstTSInExtent := i.currentExtent.startTS
+		lastTSInExtent := i.currentExtentPoints[len(i.currentExtentPoints)-1].Timestamp
+
+		if firstTSInExtent >= timestamp {
+			i.currentPointIndex = 0
+			i.currentPoint = i.currentExtentPoints[0]
+			return nil
+		}
+
+		if firstTSInExtent < timestamp && lastTSInExtent < timestamp {
 			err := i.nextExtent()
 			if err != nil {
 				return err

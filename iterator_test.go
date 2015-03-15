@@ -169,8 +169,15 @@ func TestIterator(t *testing.T) {
 	}
 
 	err = i.Seek(0)
-	if err == nil {
-		t.Fatal("expected an error after seeking to a timestamp in a dropped partition")
+	// Note that this should NOT be an error. Seek moves the iterator to the
+	// first timestamp greater than or equal to the requested timestamp,
+	// so we should now be at timestamp 5.
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if i.Point().Timestamp != 5 {
+		t.Fatalf("expected timestamp %d, got %d", 5, i.Point().Timestamp)
 	}
 
 	err = i.Seek(5)

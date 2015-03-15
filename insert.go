@@ -56,10 +56,17 @@ func (db *DB) InsertRows(rows []Row) error {
 		for i.Next() {
 			val, _ := i.Value()
 			val.Hold()
+
 			if val.MinTimestamp()/db.partitionSize == int64(key) {
 				p = val
 				goto VALID_PARTITION
 			}
+
+			if val.MinTimestamp()/db.partitionSize < int64(key) && val.MaxTimestamp()/db.partitionSize >= int64(key) {
+				p = val
+				goto VALID_PARTITION
+			}
+
 			val.Release()
 		}
 

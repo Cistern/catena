@@ -64,7 +64,7 @@ func (i *memoryIterator) Seek(timestamp int64) error {
 	i.metric.lock.Lock()
 	defer i.metric.lock.Unlock()
 
-	for ; i.currentIndex != len(i.metric.points); i.currentIndex++ {
+	for ; i.currentIndex < len(i.metric.points)-1; i.currentIndex++ {
 		if i.metric.points[i.currentIndex].Timestamp >= timestamp {
 			break
 		}
