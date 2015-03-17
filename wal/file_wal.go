@@ -276,13 +276,15 @@ func (w *FileWAL) ReadEntry() (WALEntry, error) {
 		w.lock.Unlock()
 		return entry, err
 	}
-	gzipReader.Close()
 
 	uncompressed, err := ioutil.ReadAll(gzipReader)
 	if err != nil {
+		gzipReader.Close()
 		w.lock.Unlock()
 		return entry, err
 	}
+
+	gzipReader.Close()
 
 	r = bytes.NewReader(uncompressed)
 

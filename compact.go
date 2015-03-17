@@ -32,9 +32,12 @@ func (db *DB) compact() {
 		atomic.SwapInt64(&db.minTimestamp, lastMin)
 
 		db.partitionList.Remove(p)
+
 		p.ExclusiveHold()
+
 		p.Destroy()
 		p.ExclusiveRelease()
+
 	}
 
 	toCompact := []partition.Partition{}
@@ -50,7 +53,9 @@ func (db *DB) compact() {
 		p, _ := i.Value()
 
 		if !p.ReadOnly() {
+
 			p.ExclusiveHold()
+
 			p.SetReadOnly()
 			p.ExclusiveRelease()
 
