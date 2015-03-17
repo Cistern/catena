@@ -95,10 +95,10 @@ func (db *DB) InsertRows(rows []Row) error {
 				db.partitionList.Insert(p)
 				p.Hold()
 
-				//if db.partitionList.Size() == 1 {
-				atomic.SwapInt64(&db.minTimestamp, minTimestampInRows)
-				atomic.SwapInt64(&db.maxTimestamp, maxTimestampInRows)
-				//}
+				if db.partitionList.Size() == 1 {
+					atomic.SwapInt64(&db.minTimestamp, minTimestampInRows)
+					atomic.SwapInt64(&db.maxTimestamp, maxTimestampInRows)
+				}
 
 				if !atomic.CompareAndSwapInt64(&db.lastPartitionID, newPartitionID-1, newPartitionID) {
 					p.Release()
