@@ -120,7 +120,8 @@ func OpenDB(baseDir string, partitionSize, maxPartitions int) (*DB, error) {
 	return db, nil
 }
 
-// Close closes the DB and releases
+// Close closes the DB and releases any internal state.
+// Close will block if there are active iterators.
 func (db *DB) Close() error {
 	i := db.partitionList.NewIterator()
 	for i.Next() {
