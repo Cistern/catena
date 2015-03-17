@@ -268,4 +268,6 @@ func TestIterator(t *testing.T) {
 	}
 
 	i.Close()
+
+	db.Close()
 }

@@ -17,16 +17,18 @@ type Iterator struct {
 
 // NewIterator creates a new Iterator for the given source and metric.
 func (db *DB) NewIterator(source, metric string) (*Iterator, error) {
-	var p partition.Partition
+	var p partition.Partition = nil
 
 	i := db.partitionList.NewIterator()
 	for i.Next() {
 		val, _ := i.Value()
+
 		val.Hold()
 
 		if val.HasMetric(source, metric) {
 			if p != nil {
 				p.Release()
+
 			}
 
 			p = val
@@ -39,11 +41,9 @@ func (db *DB) NewIterator(source, metric string) (*Iterator, error) {
 		return nil, errors.New("catena: couldn't find metric for iterator")
 	}
 
-	// We can defer Release because creating a new
-	// iterator will hold the partition as well.
-	defer p.Release()
-
 	partitionIter, err := p.NewIterator(source, metric)
+	p.Release()
+
 	if err != nil {
 		return nil, err
 	}
@@ -78,45 +78,48 @@ func (i *Iterator) Seek(timestamp int64) error {
 
 	i.Iterator = nil
 
-	var p partition.Partition
-
 	partitionListIter := i.db.partitionList.NewIterator()
 	for partitionListIter.Next() {
+
 		val, _ := partitionListIter.Value()
+
 		val.Hold()
 
-		if val.HasMetric(i.source, i.metric) && (val.MinTimestamp() >= timestamp ||
-			(val.MinTimestamp() <= timestamp && val.MaxTimestamp() >= timestamp)) {
-			if p != nil {
-				p.Release()
+		if val.MaxTimestamp() < timestamp {
+			val.Release()
+
+			break
+		}
+
+		if val.HasMetric(i.source, i.metric) {
+			partitionIter, err := val.NewIterator(i.source, i.metric)
+			val.Release()
+
+			if err != nil {
+				continue
 			}
 
-			p = val
+			err = partitionIter.Seek(timestamp)
+			if err != nil {
+				partitionIter.Close()
+				continue
+			}
+
+			if i.Iterator != nil {
+				i.Iterator.Close()
+			}
+
+			i.Iterator = partitionIter
+			i.curPartition = val
 		} else {
 			val.Release()
 		}
 	}
 
-	if p == nil {
+	if i.Iterator == nil {
 		return errors.New("catena: couldn't find metric for iterator")
 	}
 
-	defer p.Release()
-
-	i.curPartition = p
-
-	partitionIter, err := p.NewIterator(i.source, i.metric)
-	if err != nil {
-		return err
-	}
-
-	err = partitionIter.Seek(timestamp)
-	if err != nil {
-		partitionIter.Close()
-		return err
-	}
-
-	i.Iterator = partitionIter
 	return nil
 }
 
