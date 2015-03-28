@@ -2,7 +2,6 @@ package wal
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"io/ioutil"
@@ -11,6 +10,8 @@ import (
 	"sync"
 
 	"github.com/PreetamJinka/catena/partition"
+
+	"github.com/youtube/vitess/go/cgzip"
 )
 
 var (
@@ -114,7 +115,7 @@ func (w *FileWAL) Append(entry WALEntry) (int, error) {
 		return 0, err
 	}
 
-	gzipWriter, err := gzip.NewWriterLevel(buf, gzip.BestSpeed)
+	gzipWriter, err := cgzip.NewWriterLevel(buf, cgzip.Z_BEST_SPEED)
 	if err != nil {
 		return 0, err
 	}
@@ -271,7 +272,7 @@ func (w *FileWAL) ReadEntry() (WALEntry, error) {
 		return entry, err
 	}
 
-	gzipReader, err := gzip.NewReader(r)
+	gzipReader, err := cgzip.NewReader(r)
 	if err != nil {
 		w.lock.Unlock()
 		return entry, err

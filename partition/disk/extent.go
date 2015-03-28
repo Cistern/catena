@@ -2,10 +2,11 @@ package disk
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/binary"
 
 	"github.com/PreetamJinka/catena/partition"
+
+	"github.com/youtube/vitess/go/cgzip"
 )
 
 type diskExtent struct {
@@ -18,7 +19,7 @@ func (p *DiskPartition) extentPoints(e diskExtent) ([]partition.Point, error) {
 	r := bytes.NewReader(p.mapped)
 	r.Seek(e.offset, 0)
 
-	gzipReader, err := gzip.NewReader(r)
+	gzipReader, err := cgzip.NewReader(r)
 	if err != nil {
 		return nil, err
 	}
