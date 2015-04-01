@@ -10,7 +10,9 @@ func (p *MemoryPartition) getOrCreateSource(name string) *memorySource {
 	var source *memorySource
 	present := false
 
+	p.sourcesLock.RLock()
 	if source, present = p.sources[name]; !present {
+		p.sourcesLock.RUnlock()
 		p.sourcesLock.Lock()
 
 		if source, present = p.sources[name]; !present {
@@ -23,6 +25,8 @@ func (p *MemoryPartition) getOrCreateSource(name string) *memorySource {
 		}
 
 		p.sourcesLock.Unlock()
+	} else {
+		p.sourcesLock.RUnlock()
 	}
 
 	return source
@@ -32,7 +36,9 @@ func (s *memorySource) getOrCreateMetric(name string) *memoryMetric {
 	var metric *memoryMetric
 	present := false
 
+	s.lock.RLock()
 	if metric, present = s.metrics[name]; !present {
+		s.lock.RUnlock()
 		s.lock.Lock()
 
 		if metric, present = s.metrics[name]; !present {
@@ -46,6 +52,8 @@ func (s *memorySource) getOrCreateMetric(name string) *memoryMetric {
 		}
 
 		s.lock.Unlock()
+	} else {
+		s.lock.RUnlock()
 	}
 
 	return metric

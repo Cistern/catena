@@ -20,7 +20,7 @@ type MemoryPartition struct {
 	maxTS int64
 
 	sources     map[string]*memorySource
-	sourcesLock sync.Mutex
+	sourcesLock sync.RWMutex
 
 	wal wal.WAL
 }
@@ -29,7 +29,7 @@ type MemoryPartition struct {
 type memorySource struct {
 	name    string
 	metrics map[string]*memoryMetric
-	lock    sync.Mutex
+	lock    sync.RWMutex
 }
 
 // memoryMetric contains an ordered slice of points.
