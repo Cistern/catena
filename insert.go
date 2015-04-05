@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/PreetamJinka/catena/partition"
 	"github.com/PreetamJinka/catena/partition/memory"
@@ -123,12 +124,7 @@ func (db *DB) InsertRows(rows []Row) error {
 			return errors.New("catena: insert into read-only partition")
 		}
 
-		partitionRows := make([]partition.Row, len(rowsForKey))
-		for i, row := range rowsForKey {
-			partitionRows[i] = partition.Row(row)
-		}
-
-		err := p.InsertRows(partitionRows)
+		err := p.InsertRows(*(*[]partition.Row)(unsafe.Pointer(&rows)))
 		if err != nil {
 			p.Release()
 			return err

@@ -4,8 +4,6 @@ import (
 	"os"
 	"testing"
 	"time"
-
-	"github.com/PreetamJinka/catena/partition"
 )
 
 func TestIterator(t *testing.T) {
@@ -21,35 +19,35 @@ func TestIterator(t *testing.T) {
 			Row{
 				Source: "a",
 				Metric: "b",
-				Point: partition.Point{
+				Point: Point{
 					Timestamp: startingTS,
 				},
 			},
 			Row{
 				Source: "a",
 				Metric: "b",
-				Point: partition.Point{
+				Point: Point{
 					Timestamp: startingTS + 1,
 				},
 			},
 			Row{
 				Source: "a",
 				Metric: "b",
-				Point: partition.Point{
+				Point: Point{
 					Timestamp: startingTS + 2,
 				},
 			},
 			Row{
 				Source: "a",
 				Metric: "b",
-				Point: partition.Point{
+				Point: Point{
 					Timestamp: startingTS + 3,
 				},
 			},
 			Row{
 				Source: "a",
 				Metric: "b",
-				Point: partition.Point{
+				Point: Point{
 					Timestamp: startingTS + 4,
 				},
 			},
