@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -9,6 +8,8 @@ import (
 
 	"github.com/PreetamJinka/catena/partition"
 	"github.com/PreetamJinka/catena/partition/disk"
+
+	"github.com/youtube/vitess/go/cgzip"
 )
 
 const extentSize = 3600
@@ -43,7 +44,7 @@ func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 
 	meta := map[metaKey]metaValue{}
 
-	gzipWriter := gzip.NewWriter(w)
+	gzipWriter := cgzip.NewWriter(w)
 
 	sources := []string{}
 	metricsBySource := map[string][]string{}
@@ -67,7 +68,8 @@ func (p *MemoryPartition) Compact(w io.WriteSeeker) error {
 			}
 
 			for extentIndex, ext := range extents {
-				gzipWriter.Reset(w)
+				gzipWriter.Close()
+				gzipWriter = cgzip.NewWriter(w)
 				currentOffset, err := w.Seek(0, 1)
 				if err != nil {
 					return err

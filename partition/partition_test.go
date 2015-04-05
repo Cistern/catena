@@ -1,4 +1,4 @@
-package catena
+package partition
 
 import (
 	"fmt"

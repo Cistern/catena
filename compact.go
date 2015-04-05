@@ -55,19 +55,23 @@ func (db *DB) compact() {
 
 		p, _ := i.Value()
 
+		p.Hold()
 		if !p.ReadOnly() {
+			p.Release()
 			p.ExclusiveHold()
 			p.SetReadOnly()
 			p.ExclusiveRelease()
 
 			toCompact = append(toCompact, p)
+		} else {
+			p.Release()
 		}
 	}
 
 	for _, p := range toCompact {
 		// p is read-only, so no need to lock.
 		memPart := p.(*memory.MemoryPartition)
-		
+
 		// Create the disk partition file
 		filename := strings.TrimSuffix(memPart.Filename(), ".wal") + ".part"
 		f, err := os.Create(filename)
@@ -96,6 +100,8 @@ func (db *DB) compact() {
 		// Swap the memory partition with the disk partition.
 		db.partitionList.Swap(memPart, diskPart)
 
+		memPart.ExclusiveHold()
 		memPart.Destroy()
+		memPart.ExclusiveRelease()
 	}
 }

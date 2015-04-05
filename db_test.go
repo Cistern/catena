@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-
-	"github.com/PreetamJinka/catena/partition"
 )
 
 func TestDB(t *testing.T) {
@@ -48,7 +46,7 @@ func TestDB(t *testing.T) {
 			rows = append(rows, Row{
 				Source: "src",
 				Metric: "met_" + strconv.Itoa(i),
-				Point: partition.Point{
+				Point: Point{
 					Timestamp: ts,
 					Value:     float64(i),
 				},

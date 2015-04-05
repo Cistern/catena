@@ -9,29 +9,16 @@ import (
 
 // A Point is a single observation of a time series metric. It
 // has a timestamp and a value.
-type Point partition.Point
-
-// A Row is a Point with Source and Metric fields.
-type Row partition.Row
-
-// NewRow returns a new Row with the given values.
-func NewRow(source, metric string, timestamp int64, value float64) Row {
-	return Row{
-		Source: source,
-		Metric: metric,
-		Point: partition.Point{
-			Timestamp: timestamp,
-			Value:     value,
-		},
-	}
+type Point struct {
+	Timestamp int64
+	Value     float64
 }
 
-// NewPoint returns a new Point with the given values.
-func NewPoint(timestamp int64, value float64) Point {
-	return Point{
-		Timestamp: timestamp,
-		Value:     value,
-	}
+// A Row is a Point with Source and Metric fields.
+type Row struct {
+	Source string
+	Metric string
+	Point
 }
 
 // Making sure there are no import cycles
