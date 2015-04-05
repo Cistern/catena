@@ -10,14 +10,14 @@ import (
 // A Point is a single observation of a time series metric. It
 // has a timestamp and a value.
 type Point struct {
-	Timestamp int64
-	Value     float64
+	Timestamp int64 `json:"timestamp"`
+	Value     float64 `json:"value"`
 }
 
 // A Row is a Point with Source and Metric fields.
 type Row struct {
-	Source string
-	Metric string
+	Source string `json:"source"`
+	Metric string `json:"metric"`
 	Point
 }
 
