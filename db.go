@@ -68,7 +68,7 @@ func NewDB(baseDir string, partitionSize, maxPartitions int) (*DB, error) {
 	// TODO: use a semaphore to only have a single compactor
 	// at a time.
 	go func() {
-		for _ = range time.Tick(time.Millisecond * 50) {
+		for _ = range time.Tick(500 * time.Millisecond) {
 			db.compact()
 		}
 	}()

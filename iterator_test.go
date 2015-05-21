@@ -148,13 +148,13 @@ func TestIterator(t *testing.T) {
 
 	// Wait a bit for the compactor to start up.
 	// It should be blocked on the iterator.
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 50)
 
 	// Close the iterator, which should unblock the compactor.
 	i.Close()
 
 	// Let the compactor do its work.
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 550)
 
 	i, err = db.NewIterator("a", "b")
 	if err != nil {
