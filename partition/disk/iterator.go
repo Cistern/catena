@@ -3,7 +3,7 @@ package disk
 import (
 	"errors"
 
-	"github.com/PreetamJinka/catena/partition"
+	"github.com/Preetam/catena/partition"
 )
 
 // NewIterator returns an Iterator for the partition that iterates over

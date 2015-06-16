@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/PreetamJinka/catena/partition"
-	"github.com/PreetamJinka/catena/partition/disk"
-	"github.com/PreetamJinka/catena/partition/memory"
-	"github.com/PreetamJinka/catena/wal"
+	"github.com/Preetam/catena/partition"
+	"github.com/Preetam/catena/partition/disk"
+	"github.com/Preetam/catena/partition/memory"
+	"github.com/Preetam/catena/wal"
 )
 
 // DB is a handle to a catena database.
