@@ -2,9 +2,9 @@
 package catena
 
 import (
-	"github.com/PreetamJinka/catena/partition"
-	"github.com/PreetamJinka/catena/partition/disk"
-	"github.com/PreetamJinka/catena/partition/memory"
+	"github.com/Preetam/catena/partition"
+	"github.com/Preetam/catena/partition/disk"
+	"github.com/Preetam/catena/partition/memory"
 )
 
 // A Point is a single observation of a time series metric. It
