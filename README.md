@@ -1,4 +1,4 @@
-catena [![GoDoc](https://godoc.org/github.com/Preetam/catena?status.svg)](https://godoc.org/github.com/Preetam/catena) [![BSD License](https://img.shields.io/pypi/l/Django.svg)](https://github.com/Preetam/catena/blob/master/LICENSE)
+catena [![Circle CI](https://circleci.com/gh/Cistern/catena.svg?style=svg&circle-token=9bf7ad5d56d1a24e8bb2a060d5cad6d63576d6e8)](https://circleci.com/gh/Cistern/catena) [![GoDoc](https://godoc.org/github.com/Preetam/catena?status.svg)](https://godoc.org/github.com/Preetam/catena) [![BSD License](https://img.shields.io/pypi/l/Django.svg)](https://github.com/Preetam/catena/blob/master/LICENSE)
 ===
 > *n.* A closely linked series.
 
