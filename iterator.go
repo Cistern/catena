@@ -3,7 +3,7 @@ package catena
 import (
 	"errors"
 
-	"github.com/Preetam/catena/partition"
+	"github.com/Cistern/catena/partition"
 )
 
 // An Iterator is a cursor over an array of points

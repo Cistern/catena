@@ -2,15 +2,15 @@
 package catena
 
 import (
-	"github.com/Preetam/catena/partition"
-	"github.com/Preetam/catena/partition/disk"
-	"github.com/Preetam/catena/partition/memory"
+	"github.com/Cistern/catena/partition"
+	"github.com/Cistern/catena/partition/disk"
+	"github.com/Cistern/catena/partition/memory"
 )
 
 // A Point is a single observation of a time series metric. It
 // has a timestamp and a value.
 type Point struct {
-	Timestamp int64 `json:"timestamp"`
+	Timestamp int64   `json:"timestamp"`
 	Value     float64 `json:"value"`
 }
 

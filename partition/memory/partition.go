@@ -7,8 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/Preetam/catena/partition"
-	"github.com/Preetam/catena/wal"
+	"github.com/Cistern/catena/partition"
+	"github.com/Cistern/catena/wal"
 )
 
 // MemoryPartition is a partition that exists in-memory.

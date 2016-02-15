@@ -5,9 +5,9 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/Preetam/catena/partition"
-	"github.com/Preetam/catena/partition/disk"
-	"github.com/Preetam/catena/partition/memory"
+	"github.com/Cistern/catena/partition"
+	"github.com/Cistern/catena/partition/disk"
+	"github.com/Cistern/catena/partition/memory"
 )
 
 // compact drops old partitions and compacts older memory to

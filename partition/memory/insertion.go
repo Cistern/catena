@@ -3,7 +3,7 @@ package memory
 import (
 	"fmt"
 
-	"github.com/Preetam/catena/partition"
+	"github.com/Cistern/catena/partition"
 )
 
 func (p *MemoryPartition) getOrCreateSource(name string) *memorySource {

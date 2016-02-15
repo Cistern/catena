@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/Preetam/catena/partition"
-	"github.com/Preetam/catena/partition/memory"
-	"github.com/Preetam/catena/wal"
+	"github.com/Cistern/catena/partition"
+	"github.com/Cistern/catena/partition/memory"
+	"github.com/Cistern/catena/wal"
 )
 
 // InsertRows inserts the given rows into the database.

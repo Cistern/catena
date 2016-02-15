@@ -8,7 +8,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/Preetam/catena/partition"
+	"github.com/Cistern/catena/partition"
 )
 
 const Magic = uint32(0xcafec0de)

@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/binary"
 
-	"github.com/Preetam/catena/partition"
+	"github.com/Cistern/catena/partition"
 )
 
 type diskExtent struct {

@@ -7,8 +7,8 @@ import (
 	"io"
 	"sort"
 
-	"github.com/Preetam/catena/partition"
-	"github.com/Preetam/catena/partition/disk"
+	"github.com/Cistern/catena/partition"
+	"github.com/Cistern/catena/partition/disk"
 )
 
 const extentSize = 3600

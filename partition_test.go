@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Preetam/catena/partition"
-	"github.com/Preetam/catena/partition/disk"
-	"github.com/Preetam/catena/partition/memory"
-	"github.com/Preetam/catena/wal"
+	"github.com/Cistern/catena/partition"
+	"github.com/Cistern/catena/partition/disk"
+	"github.com/Cistern/catena/partition/memory"
+	"github.com/Cistern/catena/wal"
 )
 
 func TestMemoryPartition1(t *testing.T) {

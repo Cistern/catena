@@ -2,7 +2,7 @@
 package wal
 
 import (
-	"github.com/Preetam/catena/partition"
+	"github.com/Cistern/catena/partition"
 )
 
 type walOperation byte
