@@ -114,7 +114,7 @@ func (w *FileWAL) Append(entry WALEntry) (int, error) {
 		return 0, err
 	}
 
-	gzipWriter, err := gzip.NewWriterLevel(buf, gzip.BestSpeed)
+	gzipWriter, err := gzip.NewWriterLevel(buf, gzip.NoCompression)
 	if err != nil {
 		return 0, err
 	}
